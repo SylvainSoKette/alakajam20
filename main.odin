@@ -17,6 +17,17 @@ GAMEOVER_SCREEN_PNG := #load("assets/gameoverscreen.png")
 PIXELATED_TTF := #load("assets/font/pixelated.ttf")
 //PIXELATED_CODEPOINTS: [^]rune = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 
+// DEFINES
+SHOW_DEBUG_INFO :: true
+
+LIGHT_SKY_BLUE := rl.Color{0xdf, 0xf6, 0xf5, 0xff}
+DARK_SKY_BLUE := rl.Color{0x39, 0x31, 0x4b, 0xff}
+LIME_GREEN := rl.Color{0xb6, 0xd5, 0x3c, 0xff}
+DARK_GREY := rl.Color{0x30, 0x2c, 0x2e, 0xff}
+
+TILE_SIZE :: 16
+CHARACTER_SIZE :: 32
+
 SPRITE_STAR_0 := rl.Rectangle{8 * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE}
 SPRITE_STAR_1 := rl.Rectangle{9 * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE}
 SPRITE_STAR_2 := rl.Rectangle{10 * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE}
@@ -38,15 +49,16 @@ TILE_RED_1 := rl.Rectangle{7 * TILE_SIZE, 0 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZ
 BROKEN_TILE_RED_0 := rl.Rectangle{6 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
 BROKEN_TILE_RED_1 := rl.Rectangle{7 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
 
-// DEFINES
-SHOW_DEBUG_INFO :: true
+CHAR_IDLE_0 := rl.Rectangle{0 * CHARACTER_SIZE, 3 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
+CHAR_IDLE_1 := rl.Rectangle{1 * CHARACTER_SIZE, 3 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
+CHAR_MOVE_0 := rl.Rectangle{0 * CHARACTER_SIZE, 4 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
+CHAR_MOVE_1 := rl.Rectangle{1 * CHARACTER_SIZE, 4 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
+CHAR_MOVE_2 := rl.Rectangle{2 * CHARACTER_SIZE, 4 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
+CHAR_MOVE_3 := rl.Rectangle{3 * CHARACTER_SIZE, 4 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
+CHAR_MOVE_4 := rl.Rectangle{4 * CHARACTER_SIZE, 4 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
+CHAR_MOVE_5 := rl.Rectangle{5 * CHARACTER_SIZE, 4 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
 
-LIGHT_SKY_BLUE := rl.Color{0xdf, 0xf6, 0xf5, 0xff}
-DARK_SKY_BLUE := rl.Color{0x39, 0x31, 0x4b, 0xff}
-LIME_GREEN := rl.Color{0xb6, 0xd5, 0x3c, 0xff}
-DARK_GREY := rl.Color{0x30, 0x2c, 0x2e, 0xff}
-
-TILE_SIZE :: 16
+OFFSET_FROM_TOP :: 80.0
 
 Scene :: enum {
 	MAIN_MENU,
@@ -76,6 +88,14 @@ Level :: struct {
 	height: int,
 }
 
+GOBLIN_SPEED :: 69.0
+
+Goblin :: struct {
+	position: rl.Vector2,
+	velocity: rl.Vector2,
+	acceleration: rl.Vector2,
+}
+
 GameData :: struct {
 	seed: u64,
 	currentScene: Scene,
@@ -83,7 +103,8 @@ GameData :: struct {
 	stars: [32]AnimatedSprite,
 	currentLevel: int,
 	level: Level,
-	health: int
+	health: int,
+	goblin: Goblin,
 }
 
 Assets :: struct {
@@ -179,7 +200,7 @@ draw_sprite :: proc(sprite: rl.Rectangle, pos: rl.Vector2) {
 	rl.DrawTextureRec(assets.tileset, sprite, pos - offset, rl.WHITE)
 }
 
-update_animated_sprite :: proc(anim: ^AnimatedSprite) -> int {
+update_animated_sprite :: proc(anim: ^AnimatedSprite, dt: f32) -> int {
 	dt := rl.GetFrameTime()
 	anim.time += dt
 
@@ -195,7 +216,7 @@ update_animated_sprite :: proc(anim: ^AnimatedSprite) -> int {
 	return anim.currentIndex
 }
 
-draw_background_stars :: proc() {
+draw_background_stars :: proc(dt: f32) {
 	rand.reset(game.seed)
 	width: f32 = f32(window.width) / game.camera.zoom
 	height: f32 = f32(window.height) / game.camera.zoom
@@ -203,7 +224,7 @@ draw_background_stars :: proc() {
 		x: f32 = linalg.floor(rand.float32() * width)
 		y: f32 = linalg.floor(rand.float32() * height)
 		pos := rl.Vector2{x, y}
-		i := update_animated_sprite(&star)
+		i := update_animated_sprite(&star, dt)
 		switch i {
 			case 0: draw_sprite(SPRITE_STAR_0, pos)
 			case 1: draw_sprite(SPRITE_STAR_1, pos)
@@ -217,10 +238,13 @@ draw_background_stars :: proc() {
 init_game :: proc() {
 	game.currentLevel = 0
 	game.health = 11
+	game.goblin = Goblin {
+		position = rl.Vector2{16.0, OFFSET_FROM_TOP + 16.0}
+	}
 }
 
 // SCENES FUNCTIONS
-do_main_menu :: proc() {
+do_main_menu :: proc(dt: f32) {
 	rl.SetExitKey(rl.KeyboardKey.ESCAPE)
 
 	rl.BeginDrawing()
@@ -228,7 +252,7 @@ do_main_menu :: proc() {
 
 	rl.BeginMode2D(game.camera)
 	// stars
-	draw_background_stars()
+	draw_background_stars(dt)
 
 	// background
 	rl.DrawTexture(assets.mainMenu, 0, 0, rl.WHITE)
@@ -264,7 +288,7 @@ do_main_menu :: proc() {
 	}
 }
 
-do_game_scene :: proc() {
+do_game_scene :: proc(dt: f32) {
 	rl.SetExitKey(nil)
 
 	rl.BeginDrawing()
@@ -272,13 +296,12 @@ do_game_scene :: proc() {
 
 	rl.BeginMode2D(game.camera)
 	// stars
-	draw_background_stars()
+	draw_background_stars(dt)
 
-	offsetFromTop: f32 = 80
 	for x in 0..<game.level.width {
 		for y in 0..<game.level.height {
 			pos := rl.Vector2{f32(x * TILE_SIZE), f32(y * TILE_SIZE / 2.0)}
-			pos.y += offsetFromTop
+			pos.y += OFFSET_FROM_TOP
 
 			i := int(x + y * game.level.height) % 8
 			broken := int(x + y * game.level.width) / 14 >= game.health
@@ -312,6 +335,12 @@ do_game_scene :: proc() {
 		}	
 	}
 
+	draw_sprite(CHAR_IDLE_0, game.goblin.position)
+	if rl.IsKeyDown(rl.KeyboardKey.W) { game.goblin.position.y -= GOBLIN_SPEED * dt }
+	if rl.IsKeyDown(rl.KeyboardKey.S) { game.goblin.position.y += GOBLIN_SPEED * dt }
+	if rl.IsKeyDown(rl.KeyboardKey.A) { game.goblin.position.x -= GOBLIN_SPEED * dt }
+	if rl.IsKeyDown(rl.KeyboardKey.D) { game.goblin.position.x += GOBLIN_SPEED * dt }
+
 	if SHOW_DEBUG_INFO {
 		rl.DrawText(fmt.caprintf("current level: %i", game.currentLevel), 8, 8, 0, rl.WHITE)
 		rl.DrawText(fmt.caprintf("health: %i", game.health), 8, 16, 0, rl.WHITE)
@@ -331,7 +360,7 @@ do_game_scene :: proc() {
 	}
 }
 
-do_gameover_scene :: proc() {
+do_gameover_scene :: proc(dt: f32) {
 	rl.BeginDrawing()
 	rl.ClearBackground(rl.BLACK)
 
@@ -341,7 +370,7 @@ do_gameover_scene :: proc() {
 	rl.EndDrawing()
 }
 
-do_win_scene :: proc() {
+do_win_scene :: proc(dt: f32) {
 	rl.BeginDrawing()
 	rl.ClearBackground(rl.BLACK)
 
@@ -361,11 +390,12 @@ main :: proc() {
 	load_assets()
 
 	for !rl.WindowShouldClose() {
+		dt := rl.GetFrameTime()
 		switch game.currentScene {
-			case .MAIN_MENU: do_main_menu()
-			case .GAME: do_game_scene()
-			case .GAMEOVER: do_gameover_scene()
-			case .WIN: do_win_scene()
+			case .MAIN_MENU: do_main_menu(dt)
+			case .GAME: do_game_scene(dt)
+			case .GAMEOVER: do_gameover_scene(dt)
+			case .WIN: do_win_scene(dt)
 		}
 	}
 }
