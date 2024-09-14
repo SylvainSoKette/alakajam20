@@ -69,12 +69,19 @@ AnimatedSprite :: struct {
 	frames: int,
 }
 
+Level :: struct {
+	width: int,
+	height: int,
+}
+
 GameData :: struct {
 	seed: u64,
 	currentScene: Scene,
 	camera: rl.Camera2D,
-	level: int,
 	stars: [32]AnimatedSprite,
+	currentLevel: int,
+	level: Level,
+	health: int
 }
 
 Assets :: struct {
@@ -102,6 +109,12 @@ game := GameData{
 		target = rl.Vector2{},
 		zoom = 4.0,
 	},
+	currentLevel = 0,
+	level = {
+		width = 22,
+		height = 7,
+	},
+	health = 11,
 }
 
 assets := Assets{}
@@ -237,7 +250,8 @@ do_main_menu :: proc() {
 
 	rl.EndDrawing()
 
-	if rl.IsKeyPressed(rl.KeyboardKey.SPACE) {
+	spaceOrEnter := rl.IsKeyPressed(rl.KeyboardKey.SPACE) || rl.IsKeyPressed(rl.KeyboardKey.ENTER)
+	if spaceOrEnter {
 		game.currentScene = .GAME
 	}
 }
@@ -252,39 +266,34 @@ do_game_scene :: proc() {
 	// stars
 	draw_background_stars()
 
-	for i in 0..<16 {
-		x := i * TILE_SIZE 
-		y := 64 
-		pos := rl.Vector2{f32(x), f32(y)}
-		switch i {
-			case 0: draw_sprite(TILE_PINK_0, pos)
-			case 1: draw_sprite(TILE_PINK_1, pos)
-			case 2: draw_sprite(BROKEN_TILE_PINK_0, pos)
-			case 3: draw_sprite(BROKEN_TILE_PINK_1, pos)
+	offsetFromTop: f32 = 80
+	for x in 0..<game.level.width {
+		for y in 0..<game.level.height {
+			pos := rl.Vector2{f32(x * TILE_SIZE), f32(y * TILE_SIZE / 2.0)}
+			pos.y += offsetFromTop
 
-			case 4: draw_sprite(TILE_BLUE_0, pos)
-			case 5: draw_sprite(TILE_BLUE_1, pos)
-			case 6: draw_sprite(BROKEN_TILE_BLUE_0, pos)
-			case 7: draw_sprite(BROKEN_TILE_BLUE_1, pos)
-
-			case 8: draw_sprite(TILE_GREEN_0, pos)
-			case 9: draw_sprite(TILE_GREEN_1, pos)
-			case 10: draw_sprite(BROKEN_TILE_GREEN_0, pos)
-			case 11: draw_sprite(BROKEN_TILE_GREEN_1, pos)
-
-			case 12: draw_sprite(TILE_RED_0, pos)
-			case 13: draw_sprite(TILE_RED_1, pos)
-			case 14: draw_sprite(BROKEN_TILE_RED_0, pos)
-			case 15: draw_sprite(BROKEN_TILE_RED_1, pos)
-
-			case: draw_sprite(SPRITE_STAR_0, pos)
-
-		}
+			i := int(x + y * game.level.height) % 8
+			broken := int(x + y * game.level.height) / 11 >= game.health
+			switch i {
+				case 0: draw_sprite(broken ? BROKEN_TILE_PINK_0 : TILE_PINK_0 , pos)
+				case 1: draw_sprite(broken ? BROKEN_TILE_PINK_1 : TILE_PINK_1, pos)
+				case 2: draw_sprite(broken ? BROKEN_TILE_BLUE_0 : TILE_BLUE_0, pos)
+				case 3: draw_sprite(broken ? BROKEN_TILE_BLUE_1 : TILE_BLUE_1, pos)
+				case 4: draw_sprite(broken ? BROKEN_TILE_GREEN_0 : TILE_GREEN_0, pos)
+				case 5: draw_sprite(broken ? BROKEN_TILE_GREEN_1 : TILE_GREEN_1, pos)
+				case 6: draw_sprite(broken ? BROKEN_TILE_RED_0 : TILE_RED_0, pos)
+				case 7: draw_sprite(broken ? BROKEN_TILE_RED_1 : TILE_RED_1, pos)
+				case: draw_sprite(SPRITE_STAR_0, pos)
+			}
+		}	
 	}
 
 	rl.EndMode2D()
 
 	rl.EndDrawing()
+
+	if rl.IsKeyPressed(rl.KeyboardKey.J) { game.health -= 1 }
+	if rl.IsKeyPressed(rl.KeyboardKey.K) { game.health += 1 }
 
 	if rl.IsKeyPressed(rl.KeyboardKey.ESCAPE) {
 		game.currentScene = .MAIN_MENU
