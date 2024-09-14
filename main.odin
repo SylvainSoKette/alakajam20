@@ -21,6 +21,23 @@ SPRITE_STAR_0 := rl.Rectangle{8 * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE}
 SPRITE_STAR_1 := rl.Rectangle{9 * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE}
 SPRITE_STAR_2 := rl.Rectangle{10 * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE}
 
+TILE_PINK_0 := rl.Rectangle{0 * TILE_SIZE, 0 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+TILE_PINK_1 := rl.Rectangle{1 * TILE_SIZE, 0 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+BROKEN_TILE_PINK_0 := rl.Rectangle{0 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+BROKEN_TILE_PINK_1 := rl.Rectangle{1 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+TILE_BLUE_0 := rl.Rectangle{2 * TILE_SIZE, 0 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+TILE_BLUE_1 := rl.Rectangle{3 * TILE_SIZE, 0 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+BROKEN_TILE_BLUE_0 := rl.Rectangle{2 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+BROKEN_TILE_BLUE_1 := rl.Rectangle{3 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+TILE_GREEN_0 := rl.Rectangle{4 * TILE_SIZE, 0 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+TILE_GREEN_1 := rl.Rectangle{5 * TILE_SIZE, 0 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+BROKEN_TILE_GREEN_0 := rl.Rectangle{4 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+BROKEN_TILE_GREEN_1 := rl.Rectangle{5 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+TILE_RED_0 := rl.Rectangle{6 * TILE_SIZE, 0 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+TILE_RED_1 := rl.Rectangle{7 * TILE_SIZE, 0 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+BROKEN_TILE_RED_0 := rl.Rectangle{6 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+BROKEN_TILE_RED_1 := rl.Rectangle{7 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+
 // DEFINES
 LIGHT_SKY_BLUE := rl.Color{0xdf, 0xf6, 0xf5, 0xff}
 DARK_SKY_BLUE := rl.Color{0x39, 0x31, 0x4b, 0xff}
@@ -110,13 +127,9 @@ load_assets :: proc() {
 	//codepoints: [^]rune = utf8.string_to_runes("!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~")
 	//assets.font = rl.LoadFontFromMemory(".ttf", raw_data(PIXELATED_TTF), i32(len(PIXELATED_TTF)), 10, PIXELATED_CODEPOINTS, 224)
 
+	// TODO
 	//rl.SetWindowIcon()
 
-	//TILESET_PNG
-	//MAIN_MENU_SCREEN_PNG
-	//WIN_SCREEN_PNG
-	//GAMEOVER_SCREEN_PNG
-	
 	load_texture :: proc(bytes: []u8) -> rl.Texture {
 		image := rl.LoadImageFromMemory(".png", raw_data(bytes), i32(len(bytes)))
 		return rl.LoadTextureFromImage(image)
@@ -167,13 +180,7 @@ update_animated_sprite :: proc(anim: ^AnimatedSprite) -> int {
 	return anim.currentIndex
 }
 
-// SCENES FUNCTIONS
-do_main_menu :: proc() {
-	rl.BeginDrawing()
-	rl.ClearBackground(DARK_SKY_BLUE)
-
-	rl.BeginMode2D(game.camera)
-	// stars
+draw_background_stars :: proc() {
 	rand.reset(game.seed)
 	width: f32 = f32(window.width) / game.camera.zoom
 	height: f32 = f32(window.height) / game.camera.zoom
@@ -190,6 +197,18 @@ do_main_menu :: proc() {
 
 		}
 	}
+}
+
+// SCENES FUNCTIONS
+do_main_menu :: proc() {
+	rl.SetExitKey(rl.KeyboardKey.ESCAPE)
+
+	rl.BeginDrawing()
+	rl.ClearBackground(DARK_SKY_BLUE)
+
+	rl.BeginMode2D(game.camera)
+	// stars
+	draw_background_stars()
 
 	// background
 	rl.DrawTexture(assets.mainMenu, 0, 0, rl.WHITE)
@@ -219,18 +238,57 @@ do_main_menu :: proc() {
 	rl.EndDrawing()
 
 	if rl.IsKeyPressed(rl.KeyboardKey.SPACE) {
-		game.currentScene = .GAME		
+		game.currentScene = .GAME
 	}
 }
 
 do_game_scene :: proc() {
+	rl.SetExitKey(nil)
+
 	rl.BeginDrawing()
 	rl.ClearBackground(DARK_SKY_BLUE)
 
 	rl.BeginMode2D(game.camera)
+	// stars
+	draw_background_stars()
+
+	for i in 0..<16 {
+		x := i * TILE_SIZE 
+		y := 64 
+		pos := rl.Vector2{f32(x), f32(y)}
+		switch i {
+			case 0: draw_sprite(TILE_PINK_0, pos)
+			case 1: draw_sprite(TILE_PINK_1, pos)
+			case 2: draw_sprite(BROKEN_TILE_PINK_0, pos)
+			case 3: draw_sprite(BROKEN_TILE_PINK_1, pos)
+
+			case 4: draw_sprite(TILE_BLUE_0, pos)
+			case 5: draw_sprite(TILE_BLUE_1, pos)
+			case 6: draw_sprite(BROKEN_TILE_BLUE_0, pos)
+			case 7: draw_sprite(BROKEN_TILE_BLUE_1, pos)
+
+			case 8: draw_sprite(TILE_GREEN_0, pos)
+			case 9: draw_sprite(TILE_GREEN_1, pos)
+			case 10: draw_sprite(BROKEN_TILE_GREEN_0, pos)
+			case 11: draw_sprite(BROKEN_TILE_GREEN_1, pos)
+
+			case 12: draw_sprite(TILE_RED_0, pos)
+			case 13: draw_sprite(TILE_RED_1, pos)
+			case 14: draw_sprite(BROKEN_TILE_RED_0, pos)
+			case 15: draw_sprite(BROKEN_TILE_RED_1, pos)
+
+			case: draw_sprite(SPRITE_STAR_0, pos)
+
+		}
+	}
+
 	rl.EndMode2D()
 
 	rl.EndDrawing()
+
+	if rl.IsKeyPressed(rl.KeyboardKey.ESCAPE) {
+		game.currentScene = .MAIN_MENU
+	}
 }
 
 do_gameover_scene :: proc() {
