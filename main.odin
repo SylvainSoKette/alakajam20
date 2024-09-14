@@ -1,7 +1,9 @@
 package gobloop
 
 import "core:fmt"
+import "core:math/rand"
 import "core:unicode/utf8"
+import "core:math/linalg"
 
 import glm "core:math/linalg/glsl"
 import rl "vendor:raylib"
@@ -15,9 +17,17 @@ GAMEOVER_SCREEN_PNG := #load("assets/gameoverscreen.png")
 PIXELATED_TTF := #load("assets/font/pixelated.ttf")
 //PIXELATED_CODEPOINTS: [^]rune = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 
+SPRITE_STAR_0 := rl.Rectangle{8 * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE}
+SPRITE_STAR_1 := rl.Rectangle{9 * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE}
+SPRITE_STAR_2 := rl.Rectangle{10 * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE}
+
 // DEFINES
 LIGHT_SKY_BLUE := rl.Color{0xdf, 0xf6, 0xf5, 0xff}
 DARK_SKY_BLUE := rl.Color{0x39, 0x31, 0x4b, 0xff}
+LIME_GREEN := rl.Color{0xb6, 0xd5, 0x3c, 0xff}
+DARK_GREY := rl.Color{0x30, 0x2c, 0x2e, 0xff}
+
+TILE_SIZE :: 16
 
 Scene :: enum {
 	MAIN_MENU,
@@ -35,10 +45,19 @@ Window :: struct {
 	targetFps: i32,
 }
 
+AnimatedSprite :: struct {
+	currentIndex: int,
+	frameTime: f32,
+	time: f32,
+	frames: int,
+}
+
 GameData :: struct {
+	seed: u64,
 	currentScene: Scene,
 	camera: rl.Camera2D,
 	level: int,
+	stars: [32]AnimatedSprite,
 }
 
 Assets :: struct {
@@ -72,6 +91,10 @@ assets := Assets{}
 
 // UTIL FUNCTIONS
 load_assets :: proc() {
+	// set global seed
+	game.seed = rand.uint64()
+
+	// failing to load fonts
 	assets.font = rl.LoadFont("res/font/pixelated.ttf");
 	//fmt.println("font:")
 	//fmt.println("\tbasesize:", assets.font.baseSize)
@@ -93,9 +116,16 @@ load_assets :: proc() {
 	//MAIN_MENU_SCREEN_PNG
 	//WIN_SCREEN_PNG
 	//GAMEOVER_SCREEN_PNG
+	
+	load_texture :: proc(bytes: []u8) -> rl.Texture {
+		image := rl.LoadImageFromMemory(".png", raw_data(bytes), i32(len(bytes)))
+		return rl.LoadTextureFromImage(image)
+	}
 
-	mainMenuImage := rl.LoadImageFromMemory(".png", raw_data(MAIN_MENU_SCREEN_PNG), i32(len(MAIN_MENU_SCREEN_PNG)))
-	assets.mainMenu = rl.LoadTextureFromImage(mainMenuImage)
+	assets.tileset = load_texture(TILESET_PNG)
+	assets.mainMenu = load_texture(MAIN_MENU_SCREEN_PNG)
+	assets.winScreen = load_texture(WIN_SCREEN_PNG)
+	assets.gameoverScreen = load_texture(GAMEOVER_SCREEN_PNG)
 
 	{
 		fontSize: f32 = 10
@@ -104,32 +134,83 @@ load_assets :: proc() {
 		mainMenuExit := rl.ImageText("press [escape] to quit", i32(fontSize), rl.WHITE)
 		assets.texts["main_menu_quit"] = rl.LoadTextureFromImage(mainMenuExit)
 	}
+
+	for i in 0..<len(game.stars) {
+		game.stars[i] = AnimatedSprite{
+			currentIndex = int(rand.int31() % 3),
+			frameTime = 0.250,
+			time = rand.float32(),
+			frames = 3,
+		}
+	}
 }
 
 // GAME FUNCTIONS
+draw_sprite :: proc(sprite: rl.Rectangle, pos: rl.Vector2) {
+	offset := rl.Vector2{ sprite.width / 2.0, sprite.height / 2.0 }
+	rl.DrawTextureRec(assets.tileset, sprite, pos - offset, rl.WHITE)
+}
+
+update_animated_sprite :: proc(anim: ^AnimatedSprite) -> int {
+	dt := rl.GetFrameTime()
+	anim.time += dt
+
+	if anim.time > anim.frameTime {
+		anim.time -= anim.frameTime
+		anim.currentIndex += 1
+	}
+
+	if anim.currentIndex >= anim.frames {
+		anim.currentIndex = 0
+	}
+
+	return anim.currentIndex
+}
 
 // SCENES FUNCTIONS
 do_main_menu :: proc() {
 	rl.BeginDrawing()
-	rl.ClearBackground(rl.BLACK)
+	rl.ClearBackground(DARK_SKY_BLUE)
 
 	rl.BeginMode2D(game.camera)
+	// stars
+	rand.reset(game.seed)
+	width: f32 = f32(window.width) / game.camera.zoom
+	height: f32 = f32(window.height) / game.camera.zoom
+	for &star in game.stars {
+		x: f32 = linalg.floor(rand.float32() * width)
+		y: f32 = linalg.floor(rand.float32() * height)
+		pos := rl.Vector2{x, y}
+		i := update_animated_sprite(&star)
+		switch i {
+			case 0: draw_sprite(SPRITE_STAR_0, pos)
+			case 1: draw_sprite(SPRITE_STAR_1, pos)
+			case 2: draw_sprite(SPRITE_STAR_2, pos)
+			case: draw_sprite(SPRITE_STAR_0, pos)
+
+		}
+	}
+
+	// background
 	rl.DrawTexture(assets.mainMenu, 0, 0, rl.WHITE)
 
+	// text
 	offset: i32 = 32
 	spacing: i32 = 12
 	{
 		textTexture := assets.texts["main_menu_start"]
 		x := i32(f32(window.width) / (2.0 * game.camera.zoom) - f32(textTexture.width) / 2.0)
 		y := i32(f32(window.height) / (2.0 * game.camera.zoom) - f32(textTexture.height) / 2.0)
-		rl.DrawTexture(textTexture, x, y + offset, rl.WHITE)
+		rl.DrawTexture(textTexture, x + 1, y + offset + 1, DARK_GREY)
+		rl.DrawTexture(textTexture, x, y + offset, LIME_GREEN)
 		offset += spacing
 	}
 	{
 		textTexture := assets.texts["main_menu_quit"]
 		x := i32(f32(window.width) / (2.0 * game.camera.zoom) - f32(textTexture.width) / 2.0)
 		y := i32(f32(window.height) / (2.0 * game.camera.zoom) - f32(textTexture.height) / 2.0)
-		rl.DrawTexture(textTexture, x, y + offset, rl.WHITE)
+		rl.DrawTexture(textTexture, x + 1, y + offset + 1, DARK_GREY)
+		rl.DrawTexture(textTexture, x, y + offset, LIME_GREEN)
 		offset += spacing
 	}
 
