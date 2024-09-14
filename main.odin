@@ -39,6 +39,8 @@ BROKEN_TILE_RED_0 := rl.Rectangle{6 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * T
 BROKEN_TILE_RED_1 := rl.Rectangle{7 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
 
 // DEFINES
+SHOW_DEBUG_INFO :: true
+
 LIGHT_SKY_BLUE := rl.Color{0xdf, 0xf6, 0xf5, 0xff}
 DARK_SKY_BLUE := rl.Color{0x39, 0x31, 0x4b, 0xff}
 LIME_GREEN := rl.Color{0xb6, 0xd5, 0x3c, 0xff}
@@ -212,6 +214,11 @@ draw_background_stars :: proc() {
 	}
 }
 
+init_game :: proc() {
+	game.currentLevel = 0
+	game.health = 11
+}
+
 // SCENES FUNCTIONS
 do_main_menu :: proc() {
 	rl.SetExitKey(rl.KeyboardKey.ESCAPE)
@@ -253,6 +260,7 @@ do_main_menu :: proc() {
 	spaceOrEnter := rl.IsKeyPressed(rl.KeyboardKey.SPACE) || rl.IsKeyPressed(rl.KeyboardKey.ENTER)
 	if spaceOrEnter {
 		game.currentScene = .GAME
+		init_game()
 	}
 }
 
@@ -273,7 +281,7 @@ do_game_scene :: proc() {
 			pos.y += offsetFromTop
 
 			i := int(x + y * game.level.height) % 8
-			broken := int(x + y * game.level.height) / 11 >= game.health
+			broken := int(x + y * game.level.width) / 14 >= game.health
 
 			// TODO: refactor this lol
 			if (i + y) % 2 == 0 {
@@ -304,12 +312,19 @@ do_game_scene :: proc() {
 		}	
 	}
 
+	if SHOW_DEBUG_INFO {
+		rl.DrawText(fmt.caprintf("current level: %i", game.currentLevel), 8, 8, 0, rl.WHITE)
+		rl.DrawText(fmt.caprintf("health: %i", game.health), 8, 16, 0, rl.WHITE)
+	}
+
 	rl.EndMode2D()
 
 	rl.EndDrawing()
 
-	if rl.IsKeyPressed(rl.KeyboardKey.J) { game.health -= 1 }
-	if rl.IsKeyPressed(rl.KeyboardKey.K) { game.health += 1 }
+	if SHOW_DEBUG_INFO {
+		if rl.IsKeyPressed(rl.KeyboardKey.J) { game.health -= 1 }
+		if rl.IsKeyPressed(rl.KeyboardKey.K) { game.health += 1 }
+	}
 
 	if rl.IsKeyPressed(rl.KeyboardKey.ESCAPE) {
 		game.currentScene = .MAIN_MENU
