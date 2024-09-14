@@ -182,6 +182,14 @@ load_assets :: proc() {
 		assets.texts["main_menu_start"] = rl.LoadTextureFromImage(mainMenuPlay)
 		mainMenuExit := rl.ImageText("press [escape] to quit", i32(fontSize), rl.WHITE)
 		assets.texts["main_menu_quit"] = rl.LoadTextureFromImage(mainMenuExit)
+
+		backToMenu := rl.ImageText("press [escape] return to main menu", i32(fontSize), rl.WHITE)
+		assets.texts["back_to_menu"] = rl.LoadTextureFromImage(backToMenu)
+
+		gameover := rl.ImageText("You could not escape this strange place...", i32(fontSize), rl.WHITE)
+		assets.texts["gameover"] = rl.LoadTextureFromImage(gameover)
+		win := rl.ImageText("You escaped, well done !", i32(fontSize), rl.WHITE)
+		assets.texts["win"] = rl.LoadTextureFromImage(win)
 	}
 
 	for i in 0..<len(game.stars) {
@@ -335,11 +343,8 @@ do_game_scene :: proc(dt: f32) {
 		}	
 	}
 
+	// character stuff
 	draw_sprite(CHAR_IDLE_0, game.goblin.position)
-	if rl.IsKeyDown(rl.KeyboardKey.W) { game.goblin.position.y -= GOBLIN_SPEED * dt }
-	if rl.IsKeyDown(rl.KeyboardKey.S) { game.goblin.position.y += GOBLIN_SPEED * dt }
-	if rl.IsKeyDown(rl.KeyboardKey.A) { game.goblin.position.x -= GOBLIN_SPEED * dt }
-	if rl.IsKeyDown(rl.KeyboardKey.D) { game.goblin.position.x += GOBLIN_SPEED * dt }
 
 	if SHOW_DEBUG_INFO {
 		rl.DrawText(fmt.caprintf("current level: %i", game.currentLevel), 8, 8, 0, rl.WHITE)
@@ -351,33 +356,102 @@ do_game_scene :: proc(dt: f32) {
 	rl.EndDrawing()
 
 	if SHOW_DEBUG_INFO {
-		if rl.IsKeyPressed(rl.KeyboardKey.J) { game.health -= 1 }
-		if rl.IsKeyPressed(rl.KeyboardKey.K) { game.health += 1 }
+		if rl.IsKeyPressed(rl.KeyboardKey.J) || rl.IsKeyPressedRepeat(rl.KeyboardKey.J) { game.health -= 1 }
+		if rl.IsKeyPressed(rl.KeyboardKey.K) || rl.IsKeyPressedRepeat(rl.KeyboardKey.K) { game.health += 1 }
+		if rl.IsKeyPressed(rl.KeyboardKey.U) || rl.IsKeyPressedRepeat(rl.KeyboardKey.U) { game.currentLevel -= 1 }
+		if rl.IsKeyPressed(rl.KeyboardKey.I) || rl.IsKeyPressedRepeat(rl.KeyboardKey.I) { game.currentLevel += 1 }
 	}
+
+	// character update
+	if rl.IsKeyDown(rl.KeyboardKey.W) { game.goblin.position.y -= GOBLIN_SPEED * dt }
+	if rl.IsKeyDown(rl.KeyboardKey.S) { game.goblin.position.y += GOBLIN_SPEED * dt }
+	if rl.IsKeyDown(rl.KeyboardKey.A) { game.goblin.position.x -= GOBLIN_SPEED * dt }
+	if rl.IsKeyDown(rl.KeyboardKey.D) { game.goblin.position.x += GOBLIN_SPEED * dt }
+
+	if rl.IsKeyPressed(rl.KeyboardKey.ESCAPE) {
+		game.currentScene = .MAIN_MENU
+	}
+
+	// check for win / lose conditions
+	if game.health < 0 {
+		game.currentScene = .GAMEOVER
+	} else if game.currentLevel > 99 {
+		game.currentScene = .WIN
+	}
+}
+
+do_gameover_scene :: proc(dt: f32) {
+	rl.BeginDrawing()
+	rl.ClearBackground(DARK_SKY_BLUE)
+
+	rl.BeginMode2D(game.camera)
+
+	// background
+	rl.DrawTexture(assets.gameoverScreen, 0, 0, rl.WHITE)
+
+	// text
+	offset: i32 = -50
+	spacing: i32 = 12
+	{
+		textTexture := assets.texts["gameover"]
+		x := i32(f32(window.width) / (2.0 * game.camera.zoom) - f32(textTexture.width) / 2.0)
+		y := i32(f32(window.height) / (2.0 * game.camera.zoom) - f32(textTexture.height) / 2.0)
+		rl.DrawTexture(textTexture, x + 1, y + offset + 1, DARK_GREY)
+		rl.DrawTexture(textTexture, x, y + offset, LIME_GREEN)
+		offset += spacing
+	}
+	{
+		textTexture := assets.texts["back_to_menu"]
+		x := i32(f32(window.width) / (2.0 * game.camera.zoom) - f32(textTexture.width) / 2.0)
+		y := i32(f32(window.height) / (2.0 * game.camera.zoom) - f32(textTexture.height) / 2.0)
+		rl.DrawTexture(textTexture, x + 1, y + offset + 1, DARK_GREY)
+		rl.DrawTexture(textTexture, x, y + offset, LIME_GREEN)
+		offset += spacing
+	}
+	rl.EndMode2D()
+
+	rl.EndDrawing()
 
 	if rl.IsKeyPressed(rl.KeyboardKey.ESCAPE) {
 		game.currentScene = .MAIN_MENU
 	}
 }
 
-do_gameover_scene :: proc(dt: f32) {
-	rl.BeginDrawing()
-	rl.ClearBackground(rl.BLACK)
-
-	rl.BeginMode2D(game.camera)
-	rl.EndMode2D()
-
-	rl.EndDrawing()
-}
-
 do_win_scene :: proc(dt: f32) {
 	rl.BeginDrawing()
-	rl.ClearBackground(rl.BLACK)
+	rl.ClearBackground(LIGHT_SKY_BLUE)
 
 	rl.BeginMode2D(game.camera)
+
+	// background
+	rl.DrawTexture(assets.winScreen, 0, 0, rl.WHITE)
+
+	// text
+	offset: i32 = 50
+	spacing: i32 = 12
+	{
+		textTexture := assets.texts["win"]
+		x := i32(f32(window.width) / (2.0 * game.camera.zoom) - f32(textTexture.width) / 2.0)
+		y := i32(f32(window.height) / (2.0 * game.camera.zoom) - f32(textTexture.height) / 2.0)
+		rl.DrawTexture(textTexture, x + 1, y + offset + 1, DARK_GREY)
+		rl.DrawTexture(textTexture, x, y + offset, LIME_GREEN)
+		offset += spacing
+	}
+	{
+		textTexture := assets.texts["back_to_menu"]
+		x := i32(f32(window.width) / (2.0 * game.camera.zoom) - f32(textTexture.width) / 2.0)
+		y := i32(f32(window.height) / (2.0 * game.camera.zoom) - f32(textTexture.height) / 2.0)
+		rl.DrawTexture(textTexture, x + 1, y + offset + 1, DARK_GREY)
+		rl.DrawTexture(textTexture, x, y + offset, LIME_GREEN)
+		offset += spacing
+	}
 	rl.EndMode2D()
 
 	rl.EndDrawing()
+
+	if rl.IsKeyPressed(rl.KeyboardKey.ESCAPE) {
+		game.currentScene = .MAIN_MENU
+	}
 }
 
 main :: proc() {
