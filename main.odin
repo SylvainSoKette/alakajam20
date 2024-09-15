@@ -104,7 +104,7 @@ Fireball :: struct {
 	fireAnim: AnimatedSprite,
 	start: rl.Vector2,
 	end: rl.Vector2,
-	backAndForthTime: f32,
+	period: f32,
 }
 
 Level :: struct {
@@ -271,6 +271,13 @@ load_level_1 :: proc() {
 	for x in 4..<12 {
 		append(&level.spikes, Spike{ position = grid_to_world_pos(x, 0) })
 	}
+
+	append(&level.fireballs, Fireball{
+		position = grid_to_world_pos(5, 0),
+		start = grid_to_world_pos(5, 0),
+		end = grid_to_world_pos(5, 6),
+		period = 1.0,
+	})
 }
 
 load_level_2 :: proc() {
@@ -370,17 +377,17 @@ goblin_hurt :: proc(goblin: ^Goblin, direction: rl.Vector2) {
 	goblin.state = .HURT
 	hurtSound := assets.sounds["hurt"]
 	rl.PlaySound(hurtSound)
-	goblin.position += 2 * direction
+	goblin.position += linalg.normalize(direction) * 8.0
 	game.health -= 1
 }
 
 goblin_input :: proc(dt: f32, goblin: ^Goblin) {
 	dir := rl.Vector2{}
 
-	if rl.IsKeyDown(rl.KeyboardKey.W) { dir.y -= 1 }
-	if rl.IsKeyDown(rl.KeyboardKey.S) { dir.y += 1 }
-	if rl.IsKeyDown(rl.KeyboardKey.A) { dir.x -= 1 }
-	if rl.IsKeyDown(rl.KeyboardKey.D) { dir.x += 1 }
+	if rl.IsKeyDown(rl.KeyboardKey.W) || rl.IsKeyDown(rl.KeyboardKey.UP) { dir.y -= 1 }
+	if rl.IsKeyDown(rl.KeyboardKey.S) || rl.IsKeyDown(rl.KeyboardKey.DOWN) { dir.y += 1 }
+	if rl.IsKeyDown(rl.KeyboardKey.A) || rl.IsKeyDown(rl.KeyboardKey.LEFT) { dir.x -= 1 }
+	if rl.IsKeyDown(rl.KeyboardKey.D) || rl.IsKeyDown(rl.KeyboardKey.RIGHT) { dir.x += 1 }
 
 	if dir.x != 0 || dir.y != 0 {
 		dir = linalg.normalize(dir)
@@ -715,7 +722,8 @@ do_gameover_scene :: proc(dt: f32) {
 
 	rl.EndDrawing()
 
-	if rl.IsKeyPressed(rl.KeyboardKey.ESCAPE) {
+	spaceOrEscape := rl.IsKeyPressed(rl.KeyboardKey.SPACE) || rl.IsKeyPressed(rl.KeyboardKey.ESCAPE)
+	if spaceOrEscape {
 		game.currentScene = .MAIN_MENU
 	}
 }
@@ -752,7 +760,8 @@ do_win_scene :: proc(dt: f32) {
 
 	rl.EndDrawing()
 
-	if rl.IsKeyPressed(rl.KeyboardKey.ESCAPE) {
+	spaceOrEscape := rl.IsKeyPressed(rl.KeyboardKey.SPACE) || rl.IsKeyPressed(rl.KeyboardKey.ESCAPE)
+	if spaceOrEscape {
 		game.currentScene = .MAIN_MENU
 	}
 }
