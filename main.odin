@@ -450,32 +450,33 @@ do_game_scene :: proc(dt: f32) {
 			i := int(x + y * game.level.height) % 8
 			broken := int(x + y * game.level.width) / 14 >= game.health
 
-			// TODO: refactor this lol
+			sprite := SPRITE_STAR_0
 			if (i + y) % 2 == 0 {
 				switch i {
-					case 1: draw_sprite(broken ? BROKEN_TILE_PINK_0 : TILE_PINK_0 , pos)
-					case 0: draw_sprite(broken ? BROKEN_TILE_PINK_1 : TILE_PINK_1, pos)
-					case 3: draw_sprite(broken ? BROKEN_TILE_BLUE_0 : TILE_BLUE_0, pos)
-					case 2: draw_sprite(broken ? BROKEN_TILE_BLUE_1 : TILE_BLUE_1, pos)
-					case 5: draw_sprite(broken ? BROKEN_TILE_GREEN_0 : TILE_GREEN_0, pos)
-					case 4: draw_sprite(broken ? BROKEN_TILE_GREEN_1 : TILE_GREEN_1, pos)
-					case 7: draw_sprite(broken ? BROKEN_TILE_RED_0 : TILE_RED_0, pos)
-					case 6: draw_sprite(broken ? BROKEN_TILE_RED_1 : TILE_RED_1, pos)
-					case: draw_sprite(SPRITE_STAR_0, pos)
+					case 1: sprite = broken ? BROKEN_TILE_PINK_0 : TILE_PINK_0
+					case 0: sprite = broken ? BROKEN_TILE_PINK_1 : TILE_PINK_1
+					case 3: sprite = broken ? BROKEN_TILE_BLUE_0 : TILE_BLUE_0
+					case 2: sprite = broken ? BROKEN_TILE_BLUE_1 : TILE_BLUE_1
+					case 5: sprite = broken ? BROKEN_TILE_GREEN_0 : TILE_GREEN_0
+					case 4: sprite = broken ? BROKEN_TILE_GREEN_1 : TILE_GREEN_1
+					case 7: sprite = broken ? BROKEN_TILE_RED_0 : TILE_RED_0
+					case 6: sprite = broken ? BROKEN_TILE_RED_1 : TILE_RED_1
+					case: sprite = SPRITE_STAR_0
 				}
 			} else {
 				switch i {
-					case 0: draw_sprite(broken ? BROKEN_TILE_PINK_0 : TILE_PINK_0 , pos)
-					case 1: draw_sprite(broken ? BROKEN_TILE_PINK_1 : TILE_PINK_1, pos)
-					case 2: draw_sprite(broken ? BROKEN_TILE_BLUE_0 : TILE_BLUE_0, pos)
-					case 3: draw_sprite(broken ? BROKEN_TILE_BLUE_1 : TILE_BLUE_1, pos)
-					case 4: draw_sprite(broken ? BROKEN_TILE_GREEN_0 : TILE_GREEN_0, pos)
-					case 5: draw_sprite(broken ? BROKEN_TILE_GREEN_1 : TILE_GREEN_1, pos)
-					case 6: draw_sprite(broken ? BROKEN_TILE_RED_0 : TILE_RED_0, pos)
-					case 7: draw_sprite(broken ? BROKEN_TILE_RED_1 : TILE_RED_1, pos)
-					case: draw_sprite(SPRITE_STAR_0, pos)
+					case 0: sprite = broken ? BROKEN_TILE_PINK_0 : TILE_PINK_0
+					case 1: sprite = broken ? BROKEN_TILE_PINK_1 : TILE_PINK_1
+					case 2: sprite = broken ? BROKEN_TILE_BLUE_0 : TILE_BLUE_0
+					case 3: sprite = broken ? BROKEN_TILE_BLUE_1 : TILE_BLUE_1
+					case 4: sprite = broken ? BROKEN_TILE_GREEN_0 : TILE_GREEN_0
+					case 5: sprite = broken ? BROKEN_TILE_GREEN_1 : TILE_GREEN_1
+					case 6: sprite = broken ? BROKEN_TILE_RED_0 : TILE_RED_0
+					case 7: sprite = broken ? BROKEN_TILE_RED_1 : TILE_RED_1
+					case: sprite = SPRITE_STAR_0
 				}
 			}
+			draw_sprite(sprite, pos)
 		}	
 	}
 
