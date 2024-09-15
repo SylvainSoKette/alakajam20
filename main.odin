@@ -101,6 +101,7 @@ Goblin :: struct {
 	position: rl.Vector2,
 	velocity: rl.Vector2,
 	state: GoblinState,
+	facingRight: bool,
 	idleAnim: AnimatedSprite,
 	moveAnim: AnimatedSprite,
 }
@@ -260,6 +261,7 @@ init_game :: proc() {
 	game.goblin = Goblin {
 		position = rl.Vector2{16.0, OFFSET_FROM_TOP + 16.0},
 		state = GoblinState.IDLE,
+		facingRight = true,
 		idleAnim = AnimatedSprite{
 			currentIndex = 0,
 			frameTime = 0.250,
@@ -267,7 +269,7 @@ init_game :: proc() {
 		},
 		moveAnim = AnimatedSprite{
 			currentIndex = 0,
-			frameTime = 0.250,
+			frameTime = 0.100,
 			frames = 6,
 		},
 	}
@@ -278,11 +280,25 @@ next_level :: proc() {
 	// TODO unload previous level, load new level
 }
 
+reset_animation :: proc(anim: ^AnimatedSprite) {
+	anim.currentIndex = 0
+	anim.time = 0
+}
+
 do_goblin_idle :: proc(dt: f32, goblin: ^Goblin) {
+	if goblin.velocity.x != 0 || goblin.velocity.y != 0 {
+		reset_animation(&goblin.moveAnim)
+		reset_animation(&goblin.idleAnim)
+		goblin.state = .MOVE
+	}
 }
 
 do_goblin_move :: proc(dt: f32, goblin: ^Goblin) {
-
+	if goblin.velocity.x == 0 && goblin.velocity.y == 0 {
+		reset_animation(&goblin.moveAnim)
+		reset_animation(&goblin.idleAnim)
+		goblin.state = .IDLE
+	}
 }
 
 do_goblin_hurt :: proc(dt: f32, goblin: ^Goblin) {
@@ -302,6 +318,7 @@ update_goblin :: proc(dt: f32) {
 		goblin.position.x = 0
 	}
 
+
 	// movement
 	dir := rl.Vector2{}
 
@@ -318,12 +335,54 @@ update_goblin :: proc(dt: f32) {
 
 	goblin.position += goblin.velocity
 
+	// facing direction
+	if goblin.velocity.x > 0 {
+		goblin.facingRight = true
+	} else if goblin.velocity.x < 0 {
+		goblin.facingRight = false
+	}
+
 	// state specific stuff
 	switch goblin.state {
 		case .IDLE: do_goblin_idle(dt, goblin)
 		case .MOVE: do_goblin_move(dt, goblin)
 		case .HURT: do_goblin_hurt(dt, goblin)
 	}
+}
+
+draw_goblin :: proc(dt: f32, goblin: ^Goblin) {
+	pos := goblin.position
+	offset := rl.Vector2{-1, -TILE_SIZE + 2}
+	
+	sprite := SPRITE_STAR_0
+
+	if goblin.state == .IDLE {
+		i := update_animated_sprite(&goblin.idleAnim, dt)
+		switch i {
+			case 0: sprite = CHAR_IDLE_0
+			case 1: sprite = CHAR_IDLE_1
+			case: sprite = SPRITE_STAR_0
+		}
+	} else if goblin.state == .MOVE {
+		i := update_animated_sprite(&goblin.moveAnim, dt)
+		switch i {
+			case 0: sprite = CHAR_MOVE_0
+			case 1: sprite = CHAR_MOVE_1
+			case 2: sprite = CHAR_MOVE_2
+			case 3: sprite = CHAR_MOVE_3
+			case 4: sprite = CHAR_MOVE_4
+			case 5: sprite = CHAR_MOVE_5
+			case: sprite = SPRITE_STAR_0
+		}
+	}
+
+	if !goblin.facingRight {
+		sprite.width = -sprite.width
+		offset.x += sprite.width + 2
+	}
+
+	draw_sprite(sprite, pos + offset)
+	if SHOW_DEBUG_INFO { rl.DrawPixel(i32(pos.x), i32(pos.y), rl.RED) }
 }
 
 // SCENES FUNCTIONS
@@ -421,15 +480,7 @@ do_game_scene :: proc(dt: f32) {
 	// character stuff
 	// TODO: all draw ennemies here back to front (Y axis)
 	{
-		pos := game.goblin.position
-		offset := rl.Vector2{-1, -TILE_SIZE + 2}
-		i := update_animated_sprite(&game.goblin.idleAnim, dt)
-		switch i {
-			case 0: draw_sprite(CHAR_IDLE_0, pos + offset)
-			case 1: draw_sprite(CHAR_IDLE_1, pos + offset)
-			case: draw_sprite(SPRITE_STAR_0, pos + offset)
-		}
-		if SHOW_DEBUG_INFO { rl.DrawPixel(i32(pos.x), i32(pos.y), rl.RED) }
+		draw_goblin(dt, &game.goblin)
 	}
 
 	if SHOW_DEBUG_INFO {
