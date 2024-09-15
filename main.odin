@@ -18,6 +18,8 @@ GAMEOVER_SCREEN_PNG := #load("assets/gameoverscreen.png")
 PIXELATED_TTF := #load("assets/font/pixelated.ttf")
 //PIXELATED_CODEPOINTS: [^]rune = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 
+WALK_WAV := #load("assets/walk.wav")
+
 // DEFINES
 SHOW_DEBUG_INFO :: true
 
@@ -108,6 +110,7 @@ Goblin :: struct {
 	facingRight: bool,
 	idleAnim: AnimatedSprite,
 	moveAnim: AnimatedSprite,
+	hurtTimer: f32,
 }
 
 GameData :: struct {
@@ -130,6 +133,7 @@ Assets :: struct {
 	gameoverScreen: rl.Texture,
 	font: rl.Font,
 	texts: map[string]rl.Texture,
+	sounds: map[string]rl.Sound,
 }
 
 // GLOBAL GAME DATA
@@ -218,6 +222,11 @@ load_assets :: proc() {
 			frames = 3,
 		}
 	}
+
+	{
+		walkWave := rl.LoadWaveFromMemory(".wav", raw_data(WALK_WAV), i32(len(WALK_WAV)))
+		assets.sounds["walk"] = rl.LoadSoundFromWave(walkWave)
+	}
 }
 
 // GAME FUNCTIONS
@@ -279,6 +288,7 @@ init_game :: proc() {
 			frameTime = 0.100,
 			frames = 6,
 		},
+		hurtTimer = 0.0,
 	}
 }
 
@@ -301,9 +311,17 @@ do_goblin_idle :: proc(dt: f32, goblin: ^Goblin) {
 }
 
 do_goblin_move :: proc(dt: f32, goblin: ^Goblin) {
+	walkSound := assets.sounds["walk"]
+	if !rl.IsSoundPlaying(walkSound) {
+		rl.PlaySound(walkSound)
+	}
+
 	if goblin.velocity.x == 0 && goblin.velocity.y == 0 {
 		reset_animation(&goblin.moveAnim)
 		reset_animation(&goblin.idleAnim)
+		if rl.IsSoundPlaying(walkSound) {
+			rl.StopSound(walkSound)
+		}
 		goblin.state = .IDLE
 	}
 }
@@ -344,7 +362,9 @@ update_goblin :: proc(dt: f32) {
 		dir = linalg.normalize(dir)
 	}
 
-	goblin.velocity = dir * GOBLIN_SPEED * dt
+	// TODO: keep ?
+	speed := GOBLIN_SPEED + f32(game.currentLevel) * 8
+	goblin.velocity = dir * speed * dt
 
 	goblin.position += goblin.velocity
 
@@ -632,8 +652,12 @@ main :: proc() {
 	rl.SetTraceLogLevel(rl.TraceLogLevel.ERROR)
 
 	rl.InitWindow(window.width, window.height, window.name)
+	defer rl.CloseWindow()
 	rl.SetWindowState(window.flags)
 	rl.SetTargetFPS(window.targetFps)
+
+	rl.InitAudioDevice()
+	defer rl.CloseAudioDevice()
 
 	load_assets()
 
