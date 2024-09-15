@@ -22,4 +22,5 @@ Enjoy this sad story about a Goblin stuck on... rainbow road ? It's infinite ?
 - [Aseprite](https://www.aseprite.org/)
 - [Chiptone](https://sfbgames.itch.io/chiptonei)
 - [Audacity](https://www.audacityteam.org/)
+- [Bosca Ceoil: The blue album](https://yurisizov.itch.io/boscaceoil-blue)
 
