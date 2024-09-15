@@ -396,7 +396,16 @@ draw_goblin :: proc(dt: f32, goblin: ^Goblin) {
 	}
 
 	draw_sprite(sprite, pos + offset)
-	if SHOW_DEBUG_INFO { rl.DrawPixel(i32(pos.x), i32(pos.y), rl.RED) }
+	dopplergangerOffset := rl.Vector2{ f32(window.width) / game.camera.zoom, 0}
+	draw_sprite(sprite, pos + offset - dopplergangerOffset)
+	draw_sprite(sprite, pos + offset + dopplergangerOffset)
+	if SHOW_DEBUG_INFO {
+		rl.DrawPixel(i32(pos.x), i32(pos.y), rl.RED)
+		rl.DrawPixel(i32(pos.x - goblin.size), i32(pos.y), rl.ORANGE)
+		rl.DrawPixel(i32(pos.x + goblin.size), i32(pos.y), rl.ORANGE)
+		rl.DrawPixel(i32(pos.x), i32(pos.y - goblin.size), rl.ORANGE)
+		rl.DrawPixel(i32(pos.x), i32(pos.y + goblin.size), rl.ORANGE)
+	}
 }
 
 draw_computer :: proc(pos: rl.Vector2) {
