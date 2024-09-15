@@ -19,6 +19,7 @@ PIXELATED_TTF := #load("assets/font/pixelated.ttf")
 //PIXELATED_CODEPOINTS: [^]rune = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 
 WALK_WAV := #load("assets/walk.wav")
+HURT_WAV := #load("assets/hurt.wav")
 
 // DEFINES
 SHOW_DEBUG_INFO :: true
@@ -27,6 +28,7 @@ LIGHT_SKY_BLUE := rl.Color{0xdf, 0xf6, 0xf5, 0xff}
 DARK_SKY_BLUE := rl.Color{0x39, 0x31, 0x4b, 0xff}
 LIME_GREEN := rl.Color{0xb6, 0xd5, 0x3c, 0xff}
 DARK_GREY := rl.Color{0x30, 0x2c, 0x2e, 0xff}
+HURT_RED := rl.Color{0xe6, 0x48, 0x2e, 0xff}
 
 TILE_SIZE :: 16
 CHARACTER_SIZE :: 32
@@ -54,6 +56,9 @@ BROKEN_TILE_RED_1 := rl.Rectangle{7 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * T
 
 COMPUTER_0 := rl.Rectangle{128, 32, TILE_SIZE, TILE_SIZE}
 BUBBLE_0 := rl.Rectangle{144, 32, 80, 32}
+
+SPIKE_0 := rl.Rectangle{128, 16, 16, 16}
+SPIKE_1 := rl.Rectangle{144, 16, 16, 16}
 
 CHAR_IDLE_0 := rl.Rectangle{0 * CHARACTER_SIZE, 2 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
 CHAR_IDLE_1 := rl.Rectangle{1 * CHARACTER_SIZE, 2 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
@@ -89,9 +94,15 @@ AnimatedSprite :: struct {
 	frames: int,
 }
 
+Spike :: struct {
+	position: rl.Vector2,
+	spikeAnim: AnimatedSprite,
+}
+
 Level :: struct {
 	width: int,
 	height: int,
+	spikes: [dynamic]Spike,
 }
 
 GOBLIN_SPEED :: 96.0
@@ -118,7 +129,6 @@ GameData :: struct {
 	currentScene: Scene,
 	camera: rl.Camera2D,
 	stars: [32]AnimatedSprite,
-	spikeAnim: AnimatedSprite,
 	fireAnim: AnimatedSprite,
 	currentLevel: int,
 	level: Level,
@@ -226,13 +236,41 @@ load_assets :: proc() {
 	{
 		walkWave := rl.LoadWaveFromMemory(".wav", raw_data(WALK_WAV), i32(len(WALK_WAV)))
 		assets.sounds["walk"] = rl.LoadSoundFromWave(walkWave)
+		hurtWave := rl.LoadWaveFromMemory(".wav", raw_data(HURT_WAV), i32(len(HURT_WAV)))
+		assets.sounds["hurt"] = rl.LoadSoundFromWave(hurtWave)
 	}
 }
 
+grid_to_world_pos :: proc(x, y: int) -> rl.Vector2 {
+	gridSize := rl.Vector2{ f32(TILE_SIZE), f32(TILE_SIZE) / 2.0 }
+	out := rl.Vector2{f32(x), f32(y)}
+	return out * gridSize
+}
+
+// LEVELS
+unload_level :: proc() {
+	level := &game.level
+	clear(&level.spikes)
+}
+
+load_level_1 :: proc() {
+	fmt.println("loading level 1")
+	level := &game.level
+	offset := rl.Vector2{0, -4}
+	for x in 4..<12 {
+		append(&level.spikes, Spike{ position = grid_to_world_pos(x, 3) + offset })
+	}
+}
+
+load_level_2 :: proc() {
+	fmt.println("loading level 2")
+	level := &game.level 
+}
+
 // GAME FUNCTIONS
-draw_sprite :: proc(sprite: rl.Rectangle, pos: rl.Vector2) {
+draw_sprite :: proc(sprite: rl.Rectangle, pos: rl.Vector2, tint: rl.Color = rl.WHITE) {
 	offset := rl.Vector2{ sprite.width / 2.0, sprite.height / 2.0 }
-	rl.DrawTextureRec(assets.tileset, sprite, pos - offset, rl.WHITE)
+	rl.DrawTextureRec(assets.tileset, sprite, pos - offset, tint)
 }
 
 update_animated_sprite :: proc(anim: ^AnimatedSprite, dt: f32) -> int {
@@ -274,7 +312,7 @@ init_game :: proc() {
 	game.currentLevel = 0
 	game.health = 11
 	game.goblin = Goblin {
-		size = 4.0,
+		size = 5.0,
 		position = rl.Vector2{16.0, 16.0},
 		state = GoblinState.IDLE,
 		facingRight = true,
@@ -294,7 +332,11 @@ init_game :: proc() {
 
 next_level :: proc() {
 	game.currentLevel += 1
-	// TODO unload previous level, load new level
+	unload_level()
+	switch game.currentLevel {
+		case 1: load_level_1()
+		case: load_level_2()
+	}
 }
 
 reset_animation :: proc(anim: ^AnimatedSprite) {
@@ -302,7 +344,53 @@ reset_animation :: proc(anim: ^AnimatedSprite) {
 	anim.time = 0
 }
 
+goblin_is_touched :: proc(goblin: ^Goblin) -> (bool, rl.Vector2) {
+	level := game.level
+	for spike in level.spikes {
+		distance := linalg.distance(goblin.position, spike.position)
+		if distance < goblin.size {
+			return true, goblin.position - spike.position
+		}
+	}
+	return false, rl.Vector2{}
+}
+
+goblin_hurt :: proc(goblin: ^Goblin, direction: rl.Vector2) {
+	goblin.state = .HURT
+	hurtSound := assets.sounds["hurt"]
+	rl.PlaySound(hurtSound)
+	goblin.position += 2 * direction
+	game.health -= 1
+}
+
+goblin_input :: proc(dt: f32, goblin: ^Goblin) {
+	dir := rl.Vector2{}
+
+	if rl.IsKeyDown(rl.KeyboardKey.W) { dir.y -= 1 }
+	if rl.IsKeyDown(rl.KeyboardKey.S) { dir.y += 1 }
+	if rl.IsKeyDown(rl.KeyboardKey.A) { dir.x -= 1 }
+	if rl.IsKeyDown(rl.KeyboardKey.D) { dir.x += 1 }
+
+	if dir.x != 0 || dir.y != 0 {
+		dir = linalg.normalize(dir)
+	}
+
+	// TODO: keep ?
+	speed := GOBLIN_SPEED + f32(game.currentLevel) * 8
+	goblin.velocity = dir * speed * dt
+
+	goblin.position += goblin.velocity
+}
+
 do_goblin_idle :: proc(dt: f32, goblin: ^Goblin) {
+	goblin_input(dt, goblin)
+
+	isTouched, dir := goblin_is_touched(goblin)
+	if isTouched {
+		goblin_hurt(goblin, dir)
+		return
+	}
+
 	if goblin.velocity.x != 0 || goblin.velocity.y != 0 {
 		reset_animation(&goblin.moveAnim)
 		reset_animation(&goblin.idleAnim)
@@ -311,7 +399,18 @@ do_goblin_idle :: proc(dt: f32, goblin: ^Goblin) {
 }
 
 do_goblin_move :: proc(dt: f32, goblin: ^Goblin) {
+	goblin_input(dt, goblin)
+
 	walkSound := assets.sounds["walk"]
+	isTouched, dir := goblin_is_touched(goblin)
+	if isTouched {
+		if rl.IsSoundPlaying(walkSound) {
+			rl.StopSound(walkSound)
+		}
+		goblin_hurt(goblin, dir)
+		return
+	}
+
 	if !rl.IsSoundPlaying(walkSound) {
 		rl.PlaySound(walkSound)
 	}
@@ -327,7 +426,12 @@ do_goblin_move :: proc(dt: f32, goblin: ^Goblin) {
 }
 
 do_goblin_hurt :: proc(dt: f32, goblin: ^Goblin) {
-
+	if goblin.hurtTimer > 0.3 {
+		goblin.hurtTimer = 0
+		goblin.state = .IDLE
+	} else {
+		goblin.hurtTimer += dt
+	}
 }
 
 update_goblin :: proc(dt: f32) {
@@ -347,26 +451,7 @@ update_goblin :: proc(dt: f32) {
 		goblin.position.y = goblin.size
 	} else if goblin.position.y > bottomMost {
 		goblin.position.y = bottomMost
-	}
-
-
-	// movement
-	dir := rl.Vector2{}
-
-	if rl.IsKeyDown(rl.KeyboardKey.W) { dir.y -= 1 }
-	if rl.IsKeyDown(rl.KeyboardKey.S) { dir.y += 1 }
-	if rl.IsKeyDown(rl.KeyboardKey.A) { dir.x -= 1 }
-	if rl.IsKeyDown(rl.KeyboardKey.D) { dir.x += 1 }
-
-	if dir.x != 0 || dir.y != 0 {
-		dir = linalg.normalize(dir)
-	}
-
-	// TODO: keep ?
-	speed := GOBLIN_SPEED + f32(game.currentLevel) * 8
-	goblin.velocity = dir * speed * dt
-
-	goblin.position += goblin.velocity
+	}	
 
 	// facing direction
 	if goblin.velocity.x > 0 {
@@ -389,6 +474,7 @@ draw_goblin :: proc(dt: f32, goblin: ^Goblin) {
 	offset := rl.Vector2{-1, -TILE_SIZE + 2}
 	
 	sprite := SPRITE_STAR_0
+	tint := rl.WHITE
 
 	if goblin.state == .IDLE {
 		i := update_animated_sprite(&goblin.idleAnim, dt)
@@ -408,6 +494,9 @@ draw_goblin :: proc(dt: f32, goblin: ^Goblin) {
 			case 5: sprite = CHAR_MOVE_5
 			case: sprite = SPRITE_STAR_0
 		}
+	} else if goblin.state == .HURT {
+		sprite = CHAR_MOVE_3
+		tint = rl.RED
 	}
 
 	if !goblin.facingRight {
@@ -415,10 +504,10 @@ draw_goblin :: proc(dt: f32, goblin: ^Goblin) {
 		offset.x += sprite.width + 2
 	}
 
-	draw_sprite(sprite, pos + offset)
+	draw_sprite(sprite, pos + offset, tint)
 	dopplergangerOffset := rl.Vector2{ f32(window.width) / game.camera.zoom, 0}
-	draw_sprite(sprite, pos + offset - dopplergangerOffset)
-	draw_sprite(sprite, pos + offset + dopplergangerOffset)
+	draw_sprite(sprite, pos + offset - dopplergangerOffset, tint)
+	draw_sprite(sprite, pos + offset + dopplergangerOffset, tint)
 	if SHOW_DEBUG_INFO {
 		rl.DrawPixel(i32(pos.x), i32(pos.y), rl.RED)
 		rl.DrawPixel(i32(pos.x - goblin.size), i32(pos.y), rl.ORANGE)
@@ -536,16 +625,25 @@ do_game_scene :: proc(dt: f32) {
 	// "computer"
 	draw_computer(rl.Vector2{145, 64})
 
-	// character stuff
-	// TODO: all draw ennemies here back to front (Y axis)
+	// "entities" drawing
 	{
+		level := game.level
+		for spike in level.spikes {
+			pos := spike.position
+			pos += rl.Vector2{ 0, OFFSET_FROM_TOP }
+			offset := rl.Vector2{ 0, -4 }
+			draw_sprite(SPIKE_0, pos + offset)
+			rl.DrawPixel(i32(pos.x), i32(pos.y), rl.RED)
+		}
+
 		draw_goblin(dt, &game.goblin)
 	}
 
 	if SHOW_DEBUG_INFO {
-		rl.DrawText(fmt.caprintf("current health: %i", game.health), 8, 0, 0, rl.WHITE)
-		rl.DrawText(fmt.caprintf("current level: %i", game.currentLevel), 8, 8, 0, rl.WHITE)
-		rl.DrawText(fmt.caprintf("position: %f:%f", game.goblin.position.x, game.goblin.position.y), 8, 16, 0, rl.WHITE)
+		rl.DrawText(fmt.caprintf("current health: %i", game.health), 8, 0, 0, rl.LIME)
+		rl.DrawText(fmt.caprintf("current level: %i", game.currentLevel), 8, 8, 0, rl.LIME)
+		rl.DrawText(fmt.caprintf("position: %f:%f", game.goblin.position.x, game.goblin.position.y), 8, 16, 0, rl.LIME)
+		rl.DrawText(fmt.caprintf("spikes: %i", len(game.level.spikes)), 8, 24, 0, rl.LIME)
 	}
 
 	rl.EndMode2D()
