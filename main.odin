@@ -21,6 +21,9 @@ PIXELATED_TTF := #load("assets/font/pixelated.ttf")
 WALK_WAV := #load("assets/walk.wav")
 HURT_WAV := #load("assets/hurt.wav")
 
+// LEVELS
+LEVEL_01 := #load("levels/01.lvl")
+
 // DEFINES
 SHOW_DEBUG_INFO :: true
 
@@ -60,6 +63,10 @@ BUBBLE_0 := rl.Rectangle{144, 32, 80, 32}
 SPIKE_0 := rl.Rectangle{128, 16, 16, 16}
 SPIKE_1 := rl.Rectangle{144, 16, 16, 16}
 
+FIREBALL_0 := rl.Rectangle{176, 0, 16, 16}
+FIREBALL_1 := rl.Rectangle{192, 0, 16, 16}
+FIREBALL_2 := rl.Rectangle{208, 0, 16, 16}
+
 CHAR_IDLE_0 := rl.Rectangle{0 * CHARACTER_SIZE, 2 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
 CHAR_IDLE_1 := rl.Rectangle{1 * CHARACTER_SIZE, 2 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
 CHAR_MOVE_0 := rl.Rectangle{0 * CHARACTER_SIZE, 3 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
@@ -96,15 +103,14 @@ AnimatedSprite :: struct {
 
 Spike :: struct {
 	position: rl.Vector2,
-	spikeAnim: AnimatedSprite,
 }
 
 Fireball :: struct {
 	position: rl.Vector2,
-	fireAnim: AnimatedSprite,
 	start: rl.Vector2,
 	end: rl.Vector2,
-	period: f32,
+	speed: f32,
+	progress: f32,
 }
 
 Level :: struct {
@@ -139,6 +145,7 @@ GameData :: struct {
 	camera: rl.Camera2D,
 	stars: [32]AnimatedSprite,
 	fireAnim: AnimatedSprite,
+	spikeAnim: AnimatedSprite,
 	currentLevel: int,
 	level: Level,
 	health: int,
@@ -273,10 +280,10 @@ load_level_1 :: proc() {
 	}
 
 	append(&level.fireballs, Fireball{
-		position = grid_to_world_pos(5, 0),
-		start = grid_to_world_pos(5, 0),
-		end = grid_to_world_pos(5, 6),
-		period = 1.0,
+		position = grid_to_world_pos(5, 2),
+		start = grid_to_world_pos(5, 2),
+		end = grid_to_world_pos(10, 2),
+		speed = 1.0,
 	})
 }
 
@@ -345,6 +352,16 @@ init_game :: proc() {
 		},
 		hurtTimer = 0.0,
 	}
+	game.spikeAnim = AnimatedSprite{
+		currentIndex = 0,
+		frameTime = 0.1,
+		frames = 2,
+	}
+	game.fireAnim = AnimatedSprite{
+		currentIndex = 0,
+		frameTime = 0.1,
+		frames = 3,
+	}
 	unload_level()
 }
 
@@ -368,6 +385,12 @@ goblin_is_touched :: proc(goblin: ^Goblin) -> (bool, rl.Vector2) {
 		distance := linalg.distance(goblin.position, spike.position)
 		if distance < goblin.size {
 			return true, goblin.position - spike.position
+		}
+	}
+	for fireball in level.fireballs {
+		distance := linalg.distance(goblin.position, fireball.position)
+		if distance < goblin.size {
+			return true, goblin.position - fireball.position
 		}
 	}
 	return false, rl.Vector2{}
@@ -545,6 +568,22 @@ draw_computer :: proc(pos: rl.Vector2) {
 	rl.DrawText("overflow me", i32(textPos.x + 1), i32(textPos.y + 1), 0, DARK_SKY_BLUE)
 }
 
+draw_fireball :: proc(position: rl.Vector2, frame: int) {
+	pos := position
+	pos += rl.Vector2{ 0, OFFSET_FROM_TOP }
+	offset := rl.Vector2{ 0, -4 }
+	sprite := FIREBALL_0
+	switch frame {
+		case 0: sprite = FIREBALL_0
+		case 1: sprite = FIREBALL_1
+		case 2: sprite = FIREBALL_2
+	}
+	draw_sprite(sprite, pos + offset)
+	if SHOW_DEBUG_INFO {
+		rl.DrawPixel(i32(pos.x), i32(pos.y), rl.RED)
+	}
+}
+
 // SCENES FUNCTIONS
 do_main_menu :: proc(dt: f32) {
 	rl.SetExitKey(rl.KeyboardKey.ESCAPE)
@@ -645,16 +684,35 @@ do_game_scene :: proc(dt: f32) {
 
 	// "entities" drawing
 	{
+		spikeFrame := update_animated_sprite(&game.spikeAnim, dt)
 		level := game.level
 		for spike in level.spikes {
 			pos := spike.position
 			pos += rl.Vector2{ 0, OFFSET_FROM_TOP }
 			offset := rl.Vector2{ 0, -4 }
-			draw_sprite(SPIKE_0, pos + offset)
+			switch spikeFrame {
+				case 0: draw_sprite(SPIKE_0, pos + offset)
+				case 1: draw_sprite(SPIKE_1, pos + offset)
+			}
 			rl.DrawPixel(i32(pos.x), i32(pos.y), rl.RED)
 		}
 
+		fireFrame := update_animated_sprite(&game.fireAnim, dt)
+		for fireball in level.fireballs {
+			if fireball.position.y >= game.goblin.position.y {
+				continue
+			}
+			draw_fireball(fireball.position, fireFrame)
+		}
+
 		draw_goblin(dt, &game.goblin)
+
+		for fireball in level.fireballs {
+			if fireball.position.y < game.goblin.position.y {
+				continue
+			}
+			draw_fireball(fireball.position, fireFrame)
+		}
 	}
 
 	if SHOW_DEBUG_INFO {
