@@ -51,6 +51,7 @@ BROKEN_TILE_RED_0 := rl.Rectangle{6 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * T
 BROKEN_TILE_RED_1 := rl.Rectangle{7 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
 
 COMPUTER_0 := rl.Rectangle{128, 32, TILE_SIZE, TILE_SIZE}
+BUBBLE_0 := rl.Rectangle{144, 32, 80, 32}
 
 CHAR_IDLE_0 := rl.Rectangle{0 * CHARACTER_SIZE, 2 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
 CHAR_IDLE_1 := rl.Rectangle{1 * CHARACTER_SIZE, 2 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
@@ -61,7 +62,7 @@ CHAR_MOVE_3 := rl.Rectangle{3 * CHARACTER_SIZE, 3 * CHARACTER_SIZE, CHARACTER_SI
 CHAR_MOVE_4 := rl.Rectangle{4 * CHARACTER_SIZE, 3 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
 CHAR_MOVE_5 := rl.Rectangle{5 * CHARACTER_SIZE, 3 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
 
-OFFSET_FROM_TOP :: 80.0
+OFFSET_FROM_TOP :: 72.0
 
 Scene :: enum {
 	MAIN_MENU,
@@ -100,6 +101,7 @@ GoblinState :: enum {
 }
 
 Goblin :: struct {
+	size: f32,
 	position: rl.Vector2,
 	velocity: rl.Vector2,
 	state: GoblinState,
@@ -113,6 +115,8 @@ GameData :: struct {
 	currentScene: Scene,
 	camera: rl.Camera2D,
 	stars: [32]AnimatedSprite,
+	spikeAnim: AnimatedSprite,
+	fireAnim: AnimatedSprite,
 	currentLevel: int,
 	level: Level,
 	health: int,
@@ -261,7 +265,8 @@ init_game :: proc() {
 	game.currentLevel = 0
 	game.health = 11
 	game.goblin = Goblin {
-		position = rl.Vector2{16.0, OFFSET_FROM_TOP + 16.0},
+		size = 4.0,
+		position = rl.Vector2{16.0, 16.0},
 		state = GoblinState.IDLE,
 		facingRight = true,
 		idleAnim = AnimatedSprite{
@@ -310,14 +315,20 @@ do_goblin_hurt :: proc(dt: f32, goblin: ^Goblin) {
 update_goblin :: proc(dt: f32) {
 	goblin := &game.goblin
 
-	// position specific
+	// position constraint
 	rightMost := f32(window.width / 4.0)
-	if goblin.position.x > rightMost {
+	if goblin.position.x + goblin.size > rightMost {
 		goblin.position.x -= rightMost
 		next_level()
-	}
-	if goblin.position.x < 0 {
+	} else if goblin.position.x < 0 {
 		goblin.position.x = 0
+	}
+
+	bottomMost := f32(game.level.height * TILE_SIZE) / 2.0 - goblin.size
+	if goblin.position.y < goblin.size {
+		goblin.position.y = goblin.size
+	} else if goblin.position.y > bottomMost {
+		goblin.position.y = bottomMost
 	}
 
 
@@ -354,6 +365,7 @@ update_goblin :: proc(dt: f32) {
 
 draw_goblin :: proc(dt: f32, goblin: ^Goblin) {
 	pos := goblin.position
+	pos += rl.Vector2{ 0, OFFSET_FROM_TOP }
 	offset := rl.Vector2{-1, -TILE_SIZE + 2}
 	
 	sprite := SPRITE_STAR_0
@@ -385,6 +397,16 @@ draw_goblin :: proc(dt: f32, goblin: ^Goblin) {
 
 	draw_sprite(sprite, pos + offset)
 	if SHOW_DEBUG_INFO { rl.DrawPixel(i32(pos.x), i32(pos.y), rl.RED) }
+}
+
+draw_computer :: proc(pos: rl.Vector2) {
+	draw_sprite(COMPUTER_0 , pos)
+	rl.DrawText(fmt.caprintf("%i", game.currentLevel), 142, 59, 0, rl.WHITE)
+	bubbleOffset := rl.Vector2{20, -20}
+	draw_sprite(BUBBLE_0 , pos + bubbleOffset)
+	textPos := pos + rl.Vector2{-10, -28}
+	rl.DrawText("overflow me", i32(textPos.x), i32(textPos.y), 0, LIGHT_SKY_BLUE)
+	rl.DrawText("overflow me", i32(textPos.x + 1), i32(textPos.y + 1), 0, DARK_SKY_BLUE)
 }
 
 // SCENES FUNCTIONS
@@ -444,7 +466,9 @@ do_game_scene :: proc(dt: f32) {
 
 	for x in 0..<game.level.width {
 		for y in 0..<game.level.height {
-			pos := rl.Vector2{f32(x * TILE_SIZE), f32(y * TILE_SIZE / 2.0)}
+			halfHeight: f32 = TILE_SIZE / 2.0
+			pos := rl.Vector2{f32(x * TILE_SIZE), f32(y) * halfHeight}
+			pos.y += halfHeight
 			pos.y += OFFSET_FROM_TOP
 
 			i := int(x + y * game.level.height) % 8
@@ -481,11 +505,7 @@ do_game_scene :: proc(dt: f32) {
 	}
 
 	// "computer"
-	{
-		pos := rl.Vector2{145, 64}
-		draw_sprite(COMPUTER_0 , pos)
-		rl.DrawText(fmt.caprintf("%i", game.currentLevel), 142, 59, 0, rl.WHITE)
-	}
+	draw_computer(rl.Vector2{145, 64})
 
 	// character stuff
 	// TODO: all draw ennemies here back to front (Y axis)
@@ -494,8 +514,9 @@ do_game_scene :: proc(dt: f32) {
 	}
 
 	if SHOW_DEBUG_INFO {
+		rl.DrawText(fmt.caprintf("current health: %i", game.health), 8, 0, 0, rl.WHITE)
 		rl.DrawText(fmt.caprintf("current level: %i", game.currentLevel), 8, 8, 0, rl.WHITE)
-		rl.DrawText(fmt.caprintf("health: %i", game.health), 8, 16, 0, rl.WHITE)
+		rl.DrawText(fmt.caprintf("position: %f:%f", game.goblin.position.x, game.goblin.position.y), 8, 16, 0, rl.WHITE)
 	}
 
 	rl.EndMode2D()
