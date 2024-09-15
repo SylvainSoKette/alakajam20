@@ -50,6 +50,8 @@ TILE_RED_1 := rl.Rectangle{7 * TILE_SIZE, 0 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZ
 BROKEN_TILE_RED_0 := rl.Rectangle{6 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
 BROKEN_TILE_RED_1 := rl.Rectangle{7 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
 
+COMPUTER_0 := rl.Rectangle{128, 32, TILE_SIZE, TILE_SIZE}
+
 CHAR_IDLE_0 := rl.Rectangle{0 * CHARACTER_SIZE, 2 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
 CHAR_IDLE_1 := rl.Rectangle{1 * CHARACTER_SIZE, 2 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
 CHAR_MOVE_0 := rl.Rectangle{0 * CHARACTER_SIZE, 3 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
@@ -475,6 +477,13 @@ do_game_scene :: proc(dt: f32) {
 				}
 			}
 		}	
+	}
+
+	// "computer"
+	{
+		pos := rl.Vector2{145, 64}
+		draw_sprite(COMPUTER_0 , pos)
+		rl.DrawText(fmt.caprintf("%i", game.currentLevel), 142, 59, 0, rl.WHITE)
 	}
 
 	// character stuff
