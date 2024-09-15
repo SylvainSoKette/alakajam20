@@ -592,11 +592,13 @@ draw_goblin :: proc(dt: f32, goblin: ^Goblin) {
 draw_computer :: proc(pos: rl.Vector2) {
 	draw_sprite(COMPUTER_0 , pos)
 	rl.DrawText(fmt.caprintf("%i", game.currentLevel), 142, 59, 0, rl.WHITE)
-	bubbleOffset := rl.Vector2{20, -20}
-	draw_sprite(BUBBLE_0 , pos + bubbleOffset)
-	textPos := pos + rl.Vector2{-10, -28}
-	rl.DrawText("overflow me", i32(textPos.x), i32(textPos.y), 0, LIGHT_SKY_BLUE)
-	rl.DrawText("overflow me", i32(textPos.x + 1), i32(textPos.y + 1), 0, DARK_SKY_BLUE)
+	if game.currentLevel == 0 {
+		bubbleOffset := rl.Vector2{20, -20}
+		draw_sprite(BUBBLE_0 , pos + bubbleOffset)
+		textPos := pos + rl.Vector2{-10, -28}
+		rl.DrawText("overflow me", i32(textPos.x), i32(textPos.y), 0, LIGHT_SKY_BLUE)
+		rl.DrawText("overflow me", i32(textPos.x + 1), i32(textPos.y + 1), 0, DARK_SKY_BLUE)
+	}
 }
 
 draw_fireball :: proc(position: rl.Vector2, frame: int) {
