@@ -27,6 +27,7 @@ GAMEOVER_WAV := #load("assets/gameover.wav")
 // LEVELS
 LEVEL_01: string = #load("levels/01.lvl")
 LEVEL_02: string = #load("levels/02.lvl")
+LEVEL_03: string = #load("levels/03.lvl")
 
 // DEFINES
 SHOW_DEBUG_INFO :: false
@@ -404,6 +405,7 @@ next_level :: proc() {
 	switch game.currentLevel {
 		case 1: load_level(LEVEL_01)
 		case 2: load_level(LEVEL_02)
+		case 3: load_level(LEVEL_03)
 		case: load_level(LEVEL_01)
 	}
 }
