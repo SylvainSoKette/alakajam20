@@ -9,6 +9,7 @@ import glm "core:math/linalg/glsl"
 import rl "vendor:raylib"
 
 // ASSETS
+ICON_PNG := #load("assets/icon.png")
 TILESET_PNG := #load("assets/tileset.png")
 MAIN_MENU_SCREEN_PNG := #load("assets/mainmenu.png")
 WIN_SCREEN_PNG := #load("assets/winscreen.png")
@@ -163,8 +164,10 @@ load_assets :: proc() {
 	//codepoints: [^]rune = utf8.string_to_runes("!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~")
 	//assets.font = rl.LoadFontFromMemory(".ttf", raw_data(PIXELATED_TTF), i32(len(PIXELATED_TTF)), 10, PIXELATED_CODEPOINTS, 224)
 
-	// TODO
-	//rl.SetWindowIcon()
+	{
+		icon := rl.LoadImageFromMemory(".png", raw_data(ICON_PNG), i32(len(ICON_PNG)))
+		rl.SetWindowIcon(icon)
+	}
 
 	load_texture :: proc(bytes: []u8) -> rl.Texture {
 		image := rl.LoadImageFromMemory(".png", raw_data(bytes), i32(len(bytes)))
