@@ -99,10 +99,19 @@ Spike :: struct {
 	spikeAnim: AnimatedSprite,
 }
 
+Fireball :: struct {
+	position: rl.Vector2,
+	fireAnim: AnimatedSprite,
+	start: rl.Vector2,
+	end: rl.Vector2,
+	backAndForthTime: f32,
+}
+
 Level :: struct {
 	width: int,
 	height: int,
 	spikes: [dynamic]Spike,
+	fireballs: [dynamic]Fireball,
 }
 
 GOBLIN_SPEED :: 96.0
@@ -242,23 +251,25 @@ load_assets :: proc() {
 }
 
 grid_to_world_pos :: proc(x, y: int) -> rl.Vector2 {
-	gridSize := rl.Vector2{ f32(TILE_SIZE), f32(TILE_SIZE) / 2.0 }
+	gridSize := rl.Vector2{ f32(TILE_SIZE), f32(TILE_SIZE / 2)}
 	out := rl.Vector2{f32(x), f32(y)}
-	return out * gridSize
+	out = out * gridSize
+	offset := rl.Vector2{0, f32(TILE_SIZE / 4)}
+	return out + offset
 }
 
 // LEVELS
 unload_level :: proc() {
 	level := &game.level
 	clear(&level.spikes)
+	clear(&level.fireballs)
 }
 
 load_level_1 :: proc() {
 	fmt.println("loading level 1")
 	level := &game.level
-	offset := rl.Vector2{0, -4}
 	for x in 4..<12 {
-		append(&level.spikes, Spike{ position = grid_to_world_pos(x, 3) + offset })
+		append(&level.spikes, Spike{ position = grid_to_world_pos(x, 0) })
 	}
 }
 
@@ -303,7 +314,6 @@ draw_background_stars :: proc(dt: f32) {
 			case 1: draw_sprite(SPRITE_STAR_1, pos)
 			case 2: draw_sprite(SPRITE_STAR_2, pos)
 			case: draw_sprite(SPRITE_STAR_0, pos)
-
 		}
 	}
 }
@@ -313,7 +323,7 @@ init_game :: proc() {
 	game.health = 11
 	game.goblin = Goblin {
 		size = 5.0,
-		position = rl.Vector2{16.0, 16.0},
+		position = grid_to_world_pos(3, 3),
 		state = GoblinState.IDLE,
 		facingRight = true,
 		idleAnim = AnimatedSprite{
@@ -328,6 +338,7 @@ init_game :: proc() {
 		},
 		hurtTimer = 0.0,
 	}
+	unload_level()
 }
 
 next_level :: proc() {
