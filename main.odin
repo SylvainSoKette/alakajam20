@@ -50,14 +50,14 @@ TILE_RED_1 := rl.Rectangle{7 * TILE_SIZE, 0 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZ
 BROKEN_TILE_RED_0 := rl.Rectangle{6 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
 BROKEN_TILE_RED_1 := rl.Rectangle{7 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
 
-CHAR_IDLE_0 := rl.Rectangle{0 * CHARACTER_SIZE, 3 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
-CHAR_IDLE_1 := rl.Rectangle{1 * CHARACTER_SIZE, 3 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
-CHAR_MOVE_0 := rl.Rectangle{0 * CHARACTER_SIZE, 4 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
-CHAR_MOVE_1 := rl.Rectangle{1 * CHARACTER_SIZE, 4 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
-CHAR_MOVE_2 := rl.Rectangle{2 * CHARACTER_SIZE, 4 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
-CHAR_MOVE_3 := rl.Rectangle{3 * CHARACTER_SIZE, 4 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
-CHAR_MOVE_4 := rl.Rectangle{4 * CHARACTER_SIZE, 4 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
-CHAR_MOVE_5 := rl.Rectangle{5 * CHARACTER_SIZE, 4 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
+CHAR_IDLE_0 := rl.Rectangle{0 * CHARACTER_SIZE, 2 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
+CHAR_IDLE_1 := rl.Rectangle{1 * CHARACTER_SIZE, 2 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
+CHAR_MOVE_0 := rl.Rectangle{0 * CHARACTER_SIZE, 3 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
+CHAR_MOVE_1 := rl.Rectangle{1 * CHARACTER_SIZE, 3 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
+CHAR_MOVE_2 := rl.Rectangle{2 * CHARACTER_SIZE, 3 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
+CHAR_MOVE_3 := rl.Rectangle{3 * CHARACTER_SIZE, 3 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
+CHAR_MOVE_4 := rl.Rectangle{4 * CHARACTER_SIZE, 3 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
+CHAR_MOVE_5 := rl.Rectangle{5 * CHARACTER_SIZE, 3 * CHARACTER_SIZE, CHARACTER_SIZE, CHARACTER_SIZE}
 
 OFFSET_FROM_TOP :: 80.0
 
@@ -89,12 +89,20 @@ Level :: struct {
 	height: int,
 }
 
-GOBLIN_SPEED :: 69.0
+GOBLIN_SPEED :: 96.0
+
+GoblinState :: enum {
+	IDLE,
+	MOVE,
+	HURT,
+}
 
 Goblin :: struct {
 	position: rl.Vector2,
 	velocity: rl.Vector2,
-	acceleration: rl.Vector2,
+	state: GoblinState,
+	idleAnim: AnimatedSprite,
+	moveAnim: AnimatedSprite,
 }
 
 GameData :: struct {
@@ -250,7 +258,71 @@ init_game :: proc() {
 	game.currentLevel = 0
 	game.health = 11
 	game.goblin = Goblin {
-		position = rl.Vector2{16.0, OFFSET_FROM_TOP + 16.0}
+		position = rl.Vector2{16.0, OFFSET_FROM_TOP + 16.0},
+		state = GoblinState.IDLE,
+		idleAnim = AnimatedSprite{
+			currentIndex = 0,
+			frameTime = 0.250,
+			frames = 2,
+		},
+		moveAnim = AnimatedSprite{
+			currentIndex = 0,
+			frameTime = 0.250,
+			frames = 6,
+		},
+	}
+}
+
+next_level :: proc() {
+	game.currentLevel += 1
+	// TODO unload previous level, load new level
+}
+
+do_goblin_idle :: proc(dt: f32, goblin: ^Goblin) {
+}
+
+do_goblin_move :: proc(dt: f32, goblin: ^Goblin) {
+
+}
+
+do_goblin_hurt :: proc(dt: f32, goblin: ^Goblin) {
+
+}
+
+update_goblin :: proc(dt: f32) {
+	goblin := &game.goblin
+
+	// position specific
+	rightMost := f32(window.width / 4.0)
+	if goblin.position.x > rightMost {
+		goblin.position.x -= rightMost
+		next_level()
+	}
+	if goblin.position.x < 0 {
+		goblin.position.x = 0
+	}
+
+	// movement
+	dir := rl.Vector2{}
+
+	if rl.IsKeyDown(rl.KeyboardKey.W) { dir.y -= 1 }
+	if rl.IsKeyDown(rl.KeyboardKey.S) { dir.y += 1 }
+	if rl.IsKeyDown(rl.KeyboardKey.A) { dir.x -= 1 }
+	if rl.IsKeyDown(rl.KeyboardKey.D) { dir.x += 1 }
+
+	if dir.x != 0 || dir.y != 0 {
+		dir = linalg.normalize(dir)
+	}
+
+	goblin.velocity = dir * GOBLIN_SPEED * dt
+
+	goblin.position += goblin.velocity
+
+	// state specific stuff
+	switch goblin.state {
+		case .IDLE: do_goblin_idle(dt, goblin)
+		case .MOVE: do_goblin_move(dt, goblin)
+		case .HURT: do_goblin_hurt(dt, goblin)
 	}
 }
 
@@ -347,7 +419,18 @@ do_game_scene :: proc(dt: f32) {
 	}
 
 	// character stuff
-	draw_sprite(CHAR_IDLE_0, game.goblin.position)
+	// TODO: all draw ennemies here back to front (Y axis)
+	{
+		pos := game.goblin.position
+		offset := rl.Vector2{-1, -TILE_SIZE + 2}
+		i := update_animated_sprite(&game.goblin.idleAnim, dt)
+		switch i {
+			case 0: draw_sprite(CHAR_IDLE_0, pos + offset)
+			case 1: draw_sprite(CHAR_IDLE_1, pos + offset)
+			case: draw_sprite(SPRITE_STAR_0, pos + offset)
+		}
+		if SHOW_DEBUG_INFO { rl.DrawPixel(i32(pos.x), i32(pos.y), rl.RED) }
+	}
 
 	if SHOW_DEBUG_INFO {
 		rl.DrawText(fmt.caprintf("current level: %i", game.currentLevel), 8, 8, 0, rl.WHITE)
@@ -365,11 +448,8 @@ do_game_scene :: proc(dt: f32) {
 		if rl.IsKeyPressed(rl.KeyboardKey.I) || rl.IsKeyPressedRepeat(rl.KeyboardKey.I) { game.currentLevel += 1 }
 	}
 
-	// character update
-	if rl.IsKeyDown(rl.KeyboardKey.W) { game.goblin.position.y -= GOBLIN_SPEED * dt }
-	if rl.IsKeyDown(rl.KeyboardKey.S) { game.goblin.position.y += GOBLIN_SPEED * dt }
-	if rl.IsKeyDown(rl.KeyboardKey.A) { game.goblin.position.x -= GOBLIN_SPEED * dt }
-	if rl.IsKeyDown(rl.KeyboardKey.D) { game.goblin.position.x += GOBLIN_SPEED * dt }
+	// goblin update
+	update_goblin(dt)
 
 	if rl.IsKeyPressed(rl.KeyboardKey.ESCAPE) {
 		game.currentScene = .MAIN_MENU
@@ -378,7 +458,7 @@ do_game_scene :: proc(dt: f32) {
 	// check for win / lose conditions
 	if game.health < 0 {
 		game.currentScene = .GAMEOVER
-	} else if game.currentLevel > 99 {
+	} else if game.currentLevel > 9 {
 		game.currentScene = .WIN
 	}
 }
