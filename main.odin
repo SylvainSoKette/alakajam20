@@ -289,6 +289,7 @@ parse_fireball_line :: proc(line: string) {
 	level := &game.level
 
 	e := strings.split(line, " ")
+	if len(e) < 5 { return }
 	startX := strconv.atoi(e[0])
 	startY := strconv.atoi(e[1])
 	endX := strconv.atoi(e[2])
@@ -715,7 +716,9 @@ do_game_scene :: proc(dt: f32) {
 				case 0: draw_sprite(SPIKE_0, pos + offset)
 				case 1: draw_sprite(SPIKE_1, pos + offset)
 			}
-			rl.DrawPixel(i32(pos.x), i32(pos.y), rl.RED)
+			if SHOW_DEBUG_INFO {
+				rl.DrawPixel(i32(pos.x), i32(pos.y), rl.RED)
+			}
 		}
 
 		fireFrame := update_animated_sprite(&game.fireAnim, dt)
@@ -776,7 +779,12 @@ do_gameover_scene :: proc(dt: f32) {
 	rl.BeginMode2D(game.camera)
 
 	// background
-	rl.DrawTexture(assets.gameoverScreen, 0, 0, rl.WHITE)
+	{
+		time := rl.GetTime()
+		x := linalg.sin(time + 11) * 3
+		y := linalg.cos(time * 3 + 7) * 5
+		rl.DrawTexture(assets.gameoverScreen, i32(x), i32(y), rl.WHITE)
+	}
 
 	// text
 	offset: i32 = -50
@@ -814,7 +822,12 @@ do_win_scene :: proc(dt: f32) {
 	rl.BeginMode2D(game.camera)
 
 	// background
-	rl.DrawTexture(assets.winScreen, 0, 0, rl.WHITE)
+	{
+		time := rl.GetTime()
+		x := linalg.sin(time * 11 + 7) * 3
+		y := linalg.cos(time * 7 + 11) * 5
+		rl.DrawTexture(assets.winScreen, 0, 0, rl.WHITE)
+	}
 
 	// text
 	offset: i32 = 50
