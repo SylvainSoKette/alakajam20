@@ -22,6 +22,7 @@ PIXELATED_TTF := #load("assets/font/pixelated.ttf")
 
 WALK_WAV := #load("assets/walk.wav")
 HURT_WAV := #load("assets/hurt.wav")
+GAMEOVER_WAV := #load("assets/gameover.wav")
 
 // LEVELS
 LEVEL_01: string = #load("levels/01.lvl")
@@ -260,6 +261,8 @@ load_assets :: proc() {
 		assets.sounds["walk"] = rl.LoadSoundFromWave(walkWave)
 		hurtWave := rl.LoadWaveFromMemory(".wav", raw_data(HURT_WAV), i32(len(HURT_WAV)))
 		assets.sounds["hurt"] = rl.LoadSoundFromWave(hurtWave)
+		gameoverWave := rl.LoadWaveFromMemory(".wav", raw_data(GAMEOVER_WAV), i32(len(GAMEOVER_WAV)))
+		assets.sounds["gameover"] = rl.LoadSoundFromWave(gameoverWave)
 	}
 }
 
@@ -447,9 +450,7 @@ goblin_input :: proc(dt: f32, goblin: ^Goblin) {
 		dir = linalg.normalize(dir)
 	}
 
-	// TODO: keep ?
-	speed := GOBLIN_SPEED + f32(game.currentLevel) * 8
-	goblin.velocity = dir * speed * dt
+	goblin.velocity = dir * GOBLIN_SPEED * dt
 
 	goblin.position += goblin.velocity
 }
@@ -798,6 +799,8 @@ do_game_scene :: proc(dt: f32) {
 
 	// check for win / lose conditions
 	if game.health < 0 {
+		gameoverSound := assets.sounds["gameover"]
+		rl.PlaySound(gameoverSound)
 		game.currentScene = .GAMEOVER
 	} else if game.currentLevel > 9 {
 		game.currentScene = .WIN
