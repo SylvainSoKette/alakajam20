@@ -926,7 +926,7 @@ do_win_scene :: proc(dt: f32) {
 }
 
 main :: proc() {
-	//rl.SetTraceLogLevel(rl.TraceLogLevel.ERROR)
+	rl.SetTraceLogLevel(rl.TraceLogLevel.ERROR)
 
 	rl.InitWindow(window.width, window.height, window.name)
 	defer rl.CloseWindow()
