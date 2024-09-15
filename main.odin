@@ -112,7 +112,7 @@ Fireball :: struct {
 	position: rl.Vector2,
 	start: rl.Vector2,
 	end: rl.Vector2,
-	speed: int,
+	period: f32,
 	progress: f32,
 }
 
@@ -294,13 +294,13 @@ parse_fireball_line :: proc(line: string) {
 	startY := strconv.atoi(e[1])
 	endX := strconv.atoi(e[2])
 	endY := strconv.atoi(e[3])
-	speed := strconv.atoi(e[4])
+	period := f32(strconv.atof(e[4]))
 
 	append(&level.fireballs, Fireball{
 		position = grid_to_world_pos(startX, startY),
 		start = grid_to_world_pos(startX, startY),
 		end = grid_to_world_pos(endX, endY),
-		speed = speed,
+		period = period,
 	})
 }
 
@@ -358,7 +358,7 @@ init_game :: proc() {
 	game.currentLevel = 0
 	game.health = 11
 	game.goblin = Goblin {
-		size = 5.0,
+		size = 7.0,
 		position = grid_to_world_pos(3, 3),
 		state = GoblinState.IDLE,
 		facingRight = true,
@@ -509,9 +509,9 @@ update_goblin :: proc(dt: f32) {
 		goblin.position.x = 0
 	}
 
-	bottomMost := f32(game.level.height * TILE_SIZE) / 2.0 - goblin.size
-	if goblin.position.y < goblin.size {
-		goblin.position.y = goblin.size
+	bottomMost := f32(game.level.height * TILE_SIZE) / 2.0 - goblin.size / 2.0
+	if goblin.position.y < goblin.size / 2.0 {
+		goblin.position.y = goblin.size / 2.0
 	} else if goblin.position.y > bottomMost {
 		goblin.position.y = bottomMost
 	}	
@@ -603,6 +603,21 @@ draw_fireball :: proc(position: rl.Vector2, frame: int) {
 	draw_sprite(sprite, pos + offset)
 	if SHOW_DEBUG_INFO {
 		rl.DrawPixel(i32(pos.x), i32(pos.y), rl.RED)
+	}
+}
+
+update_fireballs :: proc(dt: f32) {
+	for &fireball in game.level.fireballs {
+		// update progress
+		fireball.progress += dt * fireball.period
+		fireball.progress = linalg.clamp(fireball.progress, 0.0, 1.0)
+		// pos according to progress
+		fireball.position = linalg.lerp(fireball.start, fireball.end, fireball.progress)
+		// reverse direction
+		if fireball.progress >= 1.0 {
+			fireball.start, fireball.end = fireball.end, fireball.start
+			fireball.progress = 0.0
+		}
 	}
 }
 
@@ -759,6 +774,8 @@ do_game_scene :: proc(dt: f32) {
 
 	// goblin update
 	update_goblin(dt)
+
+	update_fireballs(dt)
 
 	if rl.IsKeyPressed(rl.KeyboardKey.ESCAPE) {
 		game.currentScene = .MAIN_MENU
