@@ -24,6 +24,8 @@ WALK_WAV := #load("assets/walk.wav")
 HURT_WAV := #load("assets/hurt.wav")
 GAMEOVER_WAV := #load("assets/gameover.wav")
 
+THEME_OGG := #load("assets/theme.ogg")
+
 // LEVELS
 LEVEL_01: string = #load("levels/01.lvl")
 LEVEL_02: string = #load("levels/02.lvl")
@@ -167,6 +169,7 @@ Assets :: struct {
 	font: rl.Font,
 	texts: map[string]rl.Texture,
 	sounds: map[string]rl.Sound,
+	music: rl.Music,
 }
 
 // GLOBAL GAME DATA
@@ -264,6 +267,10 @@ load_assets :: proc() {
 		assets.sounds["hurt"] = rl.LoadSoundFromWave(hurtWave)
 		gameoverWave := rl.LoadWaveFromMemory(".wav", raw_data(GAMEOVER_WAV), i32(len(GAMEOVER_WAV)))
 		assets.sounds["gameover"] = rl.LoadSoundFromWave(gameoverWave)
+	}
+
+	{
+		assets.music = rl.LoadMusicStreamFromMemory(".ogg", raw_data(THEME_OGG), i32(len(THEME_OGG)))
 	}
 }
 
@@ -397,6 +404,9 @@ init_game :: proc() {
 		frames = 3,
 	}
 	unload_level()
+
+	music := assets.music
+	rl.SeekMusicStream(music, 0.0)
 }
 
 next_level :: proc() {
@@ -683,6 +693,12 @@ do_main_menu :: proc(dt: f32) {
 do_game_scene :: proc(dt: f32) {
 	rl.SetExitKey(nil)
 
+	music := assets.music
+	if rl.IsMusicReady(music) && !rl.IsMusicStreamPlaying(music) {
+		rl.PlayMusicStream(music)
+	}
+	rl.UpdateMusicStream(music)
+
 	rl.BeginDrawing()
 	rl.ClearBackground(DARK_SKY_BLUE)
 
@@ -896,7 +912,7 @@ do_win_scene :: proc(dt: f32) {
 }
 
 main :: proc() {
-	rl.SetTraceLogLevel(rl.TraceLogLevel.ERROR)
+	//rl.SetTraceLogLevel(rl.TraceLogLevel.ERROR)
 
 	rl.InitWindow(window.width, window.height, window.name)
 	defer rl.CloseWindow()
