@@ -2,8 +2,10 @@ package gobloop
 
 import "core:fmt"
 import "core:math/rand"
-import "core:unicode/utf8"
 import "core:math/linalg"
+import "core:unicode/utf8"
+import "core:strings"
+import "core:strconv"
 
 import glm "core:math/linalg/glsl"
 import rl "vendor:raylib"
@@ -22,7 +24,7 @@ WALK_WAV := #load("assets/walk.wav")
 HURT_WAV := #load("assets/hurt.wav")
 
 // LEVELS
-LEVEL_01 := #load("levels/01.lvl")
+LEVEL_01: string = #load("levels/01.lvl")
 
 // DEFINES
 SHOW_DEBUG_INFO :: true
@@ -56,6 +58,7 @@ TILE_RED_0 := rl.Rectangle{6 * TILE_SIZE, 0 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZ
 TILE_RED_1 := rl.Rectangle{7 * TILE_SIZE, 0 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
 BROKEN_TILE_RED_0 := rl.Rectangle{6 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
 BROKEN_TILE_RED_1 := rl.Rectangle{7 * TILE_SIZE, 2 * TILE_SIZE, TILE_SIZE, 2 * TILE_SIZE}
+TILE_GLASS_0 := rl.Rectangle{128, 48, TILE_SIZE, 2 * TILE_SIZE}
 
 COMPUTER_0 := rl.Rectangle{128, 32, TILE_SIZE, TILE_SIZE}
 BUBBLE_0 := rl.Rectangle{144, 32, 80, 32}
@@ -109,7 +112,7 @@ Fireball :: struct {
 	position: rl.Vector2,
 	start: rl.Vector2,
 	end: rl.Vector2,
-	speed: f32,
+	speed: int,
 	progress: f32,
 }
 
@@ -272,24 +275,42 @@ unload_level :: proc() {
 	clear(&level.fireballs)
 }
 
-load_level_1 :: proc() {
-	fmt.println("loading level 1")
+parse_level_line :: proc(line: string, y: int) {	
 	level := &game.level
-	for x in 4..<12 {
-		append(&level.spikes, Spike{ position = grid_to_world_pos(x, 0) })
+
+	for c, x in line {
+		if c == '^' {
+			append(&level.spikes, Spike{ position = grid_to_world_pos(x, y) })
+		}
 	}
+}
+
+parse_fireball_line :: proc(line: string) {
+	level := &game.level
+
+	e := strings.split(line, " ")
+	startX := strconv.atoi(e[0])
+	startY := strconv.atoi(e[1])
+	endX := strconv.atoi(e[2])
+	endY := strconv.atoi(e[3])
+	speed := strconv.atoi(e[4])
 
 	append(&level.fireballs, Fireball{
-		position = grid_to_world_pos(5, 2),
-		start = grid_to_world_pos(5, 2),
-		end = grid_to_world_pos(10, 2),
-		speed = 1.0,
+		position = grid_to_world_pos(startX, startY),
+		start = grid_to_world_pos(startX, startY),
+		end = grid_to_world_pos(endX, endY),
+		speed = speed,
 	})
 }
 
-load_level_2 :: proc() {
-	fmt.println("loading level 2")
-	level := &game.level 
+load_level :: proc(raw_level: string) {
+	for line, i in strings.split(raw_level, "\n") {
+		if i < game.level.height {
+			parse_level_line(line, i)
+		} else {
+			parse_fireball_line(line)
+		}
+	}
 }
 
 // GAME FUNCTIONS
@@ -369,8 +390,8 @@ next_level :: proc() {
 	game.currentLevel += 1
 	unload_level()
 	switch game.currentLevel {
-		case 1: load_level_1()
-		case: load_level_2()
+		case 1: load_level(LEVEL_01)
+		case: load_level(LEVEL_01)
 	}
 }
 
