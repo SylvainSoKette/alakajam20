@@ -30,6 +30,13 @@ THEME_OGG := #load("assets/theme.ogg")
 LEVEL_01: string = #load("levels/01.lvl")
 LEVEL_02: string = #load("levels/02.lvl")
 LEVEL_03: string = #load("levels/03.lvl")
+LEVEL_04: string = #load("levels/04.lvl")
+LEVEL_05: string = #load("levels/05.lvl")
+LEVEL_06: string = #load("levels/06.lvl")
+LEVEL_07: string = #load("levels/07.lvl")
+LEVEL_08: string = #load("levels/08.lvl")
+LEVEL_09: string = #load("levels/09.lvl")
+LEVEL_10: string = #load("levels/10.lvl")
 
 // DEFINES
 SHOW_DEBUG_INFO :: false
@@ -416,6 +423,13 @@ next_level :: proc() {
 		case 1: load_level(LEVEL_01)
 		case 2: load_level(LEVEL_02)
 		case 3: load_level(LEVEL_03)
+		case 4: load_level(LEVEL_04)
+		case 5: load_level(LEVEL_05)
+		case 6: load_level(LEVEL_06)
+		case 7: load_level(LEVEL_07)
+		case 8: load_level(LEVEL_08)
+		case 9: load_level(LEVEL_09)
+		case 10: load_level(LEVEL_10)
 		case: load_level(LEVEL_01)
 	}
 }
@@ -820,7 +834,7 @@ do_game_scene :: proc(dt: f32) {
 		gameoverSound := assets.sounds["gameover"]
 		rl.PlaySound(gameoverSound)
 		game.currentScene = .GAMEOVER
-	} else if game.currentLevel > 9 {
+	} else if game.currentLevel > 10 {
 		game.currentScene = .WIN
 	}
 }
