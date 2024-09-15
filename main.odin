@@ -29,7 +29,7 @@ LEVEL_01: string = #load("levels/01.lvl")
 LEVEL_02: string = #load("levels/02.lvl")
 
 // DEFINES
-SHOW_DEBUG_INFO :: true
+SHOW_DEBUG_INFO :: false
 
 LIGHT_SKY_BLUE := rl.Color{0xdf, 0xf6, 0xf5, 0xff}
 DARK_SKY_BLUE := rl.Color{0x39, 0x31, 0x4b, 0xff}
