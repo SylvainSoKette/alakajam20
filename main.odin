@@ -25,6 +25,7 @@ HURT_WAV := #load("assets/hurt.wav")
 
 // LEVELS
 LEVEL_01: string = #load("levels/01.lvl")
+LEVEL_02: string = #load("levels/02.lvl")
 
 // DEFINES
 SHOW_DEBUG_INFO :: true
@@ -119,6 +120,7 @@ Fireball :: struct {
 Level :: struct {
 	width: int,
 	height: int,
+	glassTiles: [21 * 7]bool,
 	spikes: [dynamic]Spike,
 	fireballs: [dynamic]Fireball,
 }
@@ -183,8 +185,9 @@ game := GameData{
 	},
 	currentLevel = 0,
 	level = {
-		width = 22,
+		width = 21,
 		height = 7,
+		glassTiles = [21 * 7]bool{}
 	},
 	health = 11,
 }
@@ -271,6 +274,9 @@ grid_to_world_pos :: proc(x, y: int) -> rl.Vector2 {
 // LEVELS
 unload_level :: proc() {
 	level := &game.level
+	for &isGlass in level.glassTiles {
+		isGlass = false
+	}
 	clear(&level.spikes)
 	clear(&level.fireballs)
 }
@@ -281,6 +287,8 @@ parse_level_line :: proc(line: string, y: int) {
 	for c, x in line {
 		if c == '^' {
 			append(&level.spikes, Spike{ position = grid_to_world_pos(x, y) })
+		} else if c == 'o' {
+			level.glassTiles[y * 21 + x] = true
 		}
 	}
 }
@@ -358,7 +366,7 @@ init_game :: proc() {
 	game.currentLevel = 0
 	game.health = 11
 	game.goblin = Goblin {
-		size = 7.0,
+		size = 5.0,
 		position = grid_to_world_pos(3, 3),
 		state = GoblinState.IDLE,
 		facingRight = true,
@@ -392,6 +400,7 @@ next_level :: proc() {
 	unload_level()
 	switch game.currentLevel {
 		case 1: load_level(LEVEL_01)
+		case 2: load_level(LEVEL_02)
 		case: load_level(LEVEL_01)
 	}
 }
@@ -683,11 +692,15 @@ do_game_scene :: proc(dt: f32) {
 			pos.y += halfHeight
 			pos.y += OFFSET_FROM_TOP
 
+			sprite := SPRITE_STAR_0
+
 			i := int(x + y * game.level.height) % 8
 			broken := int(x + y * game.level.width) / 14 >= game.health
+			isGlass := game.level.glassTiles[y * 21 + x]
 
-			sprite := SPRITE_STAR_0
-			if (i + y) % 2 == 0 {
+			if isGlass {
+				sprite = TILE_GLASS_0
+			} else if (i + y) % 2 == 0 {
 				switch i {
 					case 1: sprite = broken ? BROKEN_TILE_PINK_0 : TILE_PINK_0
 					case 0: sprite = broken ? BROKEN_TILE_PINK_1 : TILE_PINK_1
